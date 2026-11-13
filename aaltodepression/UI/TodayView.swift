@@ -13,6 +13,7 @@ struct TodayView: View {
                     if let c = model.current {
                         StripesView(result: c.result, locationEnabled: model.locationEnabled) { detail = $0 }
                         StateSection(day: c)
+                        HistoryChart(days: model.history)
                     } else {
                         ContentUnavailableView("No days to show yet", systemImage: "sun.horizon",
                                                description: Text("Usual needs a week of Health data before it can compare a day with your usual."))
