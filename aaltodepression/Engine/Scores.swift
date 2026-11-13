@@ -37,6 +37,8 @@ nonisolated struct ScorePart: Sendable {
     let value: Double
     let usual: Usual?
     let points: Double
+    /// Weight inside its score: 1 for core signals, 0.5 for supporting ones.
+    var weight: Double = 1
 }
 
 nonisolated struct DayResult: Sendable {
@@ -58,6 +60,8 @@ nonisolated struct DayResult: Sendable {
     var rhythmParts: [ScorePart] = []
 }
 
+nonisolated enum Direction: Sendable { case higherIsFine, lowerIsFine, either }
+
 nonisolated struct Scorer: Sendable {
     let table: FeatureTable
     /// Home time zone identifier, used for the travelling flag.
@@ -68,17 +72,30 @@ nonisolated struct Scorer: Sendable {
     func evaluate(_ day: Day) -> DayResult {
         var r = DayResult(day: day)
 
-        func part(_ key: String, oneSided: Bool) -> ScorePart? {
+        func part(_ key: String, oneSided: Bool, weight: Double = 1) -> ScorePart? {
             guard let x = table.value(key, day), let u = Baseline.usual(key, in: table, for: day) else { return nil }
             let p = oneSided ? Baseline.atLeast(x, u) : Baseline.closeness(x, u)
-            return ScorePart(key: key, value: x, usual: u, points: p)
+            return ScorePart(key: key, value: x, usual: u, points: p, weight: weight)
+        }
+
+        /// Supporting signal, half weight, in the direction that matters.
+        func extra(_ key: String, _ dir: Direction) -> ScorePart? {
+            guard let x = table.value(key, day), let u = Baseline.usual(key, in: table, for: day) else { return nil }
+            let p: Double
+            switch dir {
+            case .higherIsFine: p = Baseline.atLeast(x, u)
+            case .lowerIsFine: p = x <= u.median ? 100 : Baseline.closeness(x, u)
+            case .either: p = Baseline.closeness(x, u)
+            }
+            return ScorePart(key: key, value: x, usual: u, points: p, weight: 0.5)
         }
 
         func record(_ kind: ScoreKind, _ parts: [ScorePart?]) {
             let ps = parts.compactMap { $0 }
             guard !ps.isEmpty else { return }
             r.parts[kind] = ps
-            r.scores[kind] = ps.map(\.points).reduce(0, +) / Double(ps.count)
+            let w = ps.map(\.weight).reduce(0, +)
+            r.scores[kind] = ps.map { $0.points * $0.weight }.reduce(0, +) / w
         }
 
         // Sleep: last night, plus the last three nights together, because short nights add up
@@ -90,7 +107,9 @@ nonisolated struct Scorer: Sendable {
             debt = ScorePart(key: Scorer.sleep3Key, value: mean, usual: u, points: Baseline.atLeast(mean, u))
         }
         record(.sleep, [part(F.sleepHours, oneSided: false), part(F.bedtime, oneSided: false),
-                        part(F.wake, oneSided: false), part(F.awakeMin, oneSided: false), debt])
+                        part(F.wake, oneSided: false), part(F.awakeMin, oneSided: false), debt,
+                        extra(F.deepMin, .higherIsFine), extra(F.remMin, .higherIsFine),
+                        extra(F.sleepEfficiency, .higherIsFine), extra(F.breathingDisturbances, .lowerIsFine)])
 
         // Rhythm: compared with the person's own regularity, not a fixed number of hours.
         let week = (day - 6, day + 1)
@@ -132,36 +151,59 @@ nonisolated struct Scorer: Sendable {
             lateListening = ScorePart(key: F.nightListeningMin, value: x, usual: u,
                                       points: x <= u.median ? 100 : Baseline.closeness(x, Usual(median: u.median, mad: max(u.mad, 5))))
         }
-        let rp = [spreadPart(F.wake, r.wakeSD), spreadPart(F.bedtime, r.bedtimeSD), midpoint, lateListening].compactMap { $0 }
-        if !rp.isEmpty {
-            r.rhythmParts = rp
-            r.parts[.rhythm] = rp
-            r.scores[.rhythm] = rp.map(\.points).reduce(0, +) / Double(rp.count)
-        }
+        record(.rhythm, [spreadPart(F.wake, r.wakeSD), spreadPart(F.bedtime, r.bedtimeSD), midpoint, lateListening,
+                         extra(F.headphoneMin, .lowerIsFine), extra(F.toothbrushing, .higherIsFine)])
+        r.rhythmParts = r.parts[.rhythm] ?? []
 
         // Hours with movement come from hourly Health steps, which go back years; Core Motion's
         // still hours only cover the last week, so they never build a usual.
         record(.movement, [part(F.steps, oneSided: true), part(F.exerciseMin, oneSided: true),
-                           part(F.walkingSpeed, oneSided: false), part(F.activeHours, oneSided: true)])
+                           part(F.walkingSpeed, oneSided: false), part(F.activeHours, oneSided: true),
+                           extra(F.walkRunDistance, .higherIsFine), extra(F.flights, .higherIsFine),
+                           extra(F.standMin, .higherIsFine), extra(F.standHours, .higherIsFine),
+                           extra(F.activeEnergy, .higherIsFine), extra(F.physicalEffort, .higherIsFine),
+                           extra(F.workoutMin, .higherIsFine), extra(F.cyclingDistance, .higherIsFine),
+                           extra(F.stepLength, .either), extra(F.walkingSteadiness, .higherIsFine),
+                           extra(F.stairUpSpeed, .higherIsFine), extra(F.stairDownSpeed, .higherIsFine),
+                           extra(F.doubleSupport, .lowerIsFine), extra(F.walkAsymmetry, .lowerIsFine),
+                           extra(F.sixMinWalk, .higherIsFine), extra(F.walkingHours, .higherIsFine),
+                           extra(F.stillHours, .lowerIsFine)])
 
         // Daylight: a fair target that shrinks in a Finnish winter.
         if let len = table.value(F.dayLengthH, day), len < 8 {
             r.daylightTarget = max(15, 30 * len / 8)
         }
+        var daylightPart: ScorePart?
         if let minutes = table.value(F.daylightMin, day) {
-            r.scores[.daylight] = min(100, minutes / r.daylightTarget * 100)
+            daylightPart = ScorePart(key: F.daylightMin, value: minutes, usual: Usual(median: r.daylightTarget, mad: 0),
+                                     points: min(100, minutes / r.daylightTarget * 100))
         } else if let minutes = table.value(F.daylightWalkMin, day) {
             // No Apple Watch daylight: estimate from steps between sunrise and sunset.
-            r.scores[.daylight] = min(100, minutes / r.daylightTarget * 100)
+            daylightPart = ScorePart(key: F.daylightWalkMin, value: minutes, usual: Usual(median: r.daylightTarget, mad: 0),
+                                     points: min(100, minutes / r.daylightTarget * 100))
             r.daylightEstimated = true
         }
+        if daylightPart != nil { record(.daylight, [daylightPart, extra(F.uvExposure, .higherIsFine)]) }
 
         if locationEnabled {
-            record(.places, [part(F.awayHours, oneSided: true), part(F.placesVisited, oneSided: true)])
+            record(.places, [part(F.awayHours, oneSided: true), part(F.placesVisited, oneSided: true),
+                             extra(F.homeHours, .lowerIsFine), extra(F.maxKmFromHome, .higherIsFine),
+                             extra(F.locationEntropy, .higherIsFine), extra(F.automotiveHours, .higherIsFine),
+                             extra(F.photosAwayFromHome, .higherIsFine), extra(F.calendarEvents, .higherIsFine),
+                             extra(F.eventHours, .higherIsFine), extra(F.photosTaken, .higherIsFine),
+                             extra(F.envSound, .higherIsFine)])
+        } else {
+            // Without location, the days still show contact with the world through calendar and photos.
+            record(.places, [extra(F.calendarEvents, .higherIsFine), extra(F.eventHours, .higherIsFine),
+                             extra(F.photosTaken, .higherIsFine), extra(F.envSound, .higherIsFine)])
         }
 
         record(.body, [part(F.restingHR, oneSided: false), part(F.hrv, oneSided: false),
-                       part(F.wristTemp, oneSided: false), part(F.respRate, oneSided: false)])
+                       part(F.wristTemp, oneSided: false), part(F.respRate, oneSided: false),
+                       extra(F.heartRate, .either), extra(F.heartRateMin, .either), extra(F.heartRateMax, .either),
+                       extra(F.walkingHR, .lowerIsFine), extra(F.hrRecovery, .higherIsFine),
+                       extra(F.vo2max, .higherIsFine), extra(F.spo2, .higherIsFine), extra(F.bodyMass, .either),
+                       extra(F.basalEnergy, .either)])
 
         // Day score: weighted mean of what is available, renormalised.
         let available = r.scores

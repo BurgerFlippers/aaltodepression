@@ -22,7 +22,8 @@ nonisolated enum SteadinessBand: Sendable {
 /// (sub - 100) / n, and the effects of one score add up to score - 100.
 nonisolated enum Effects {
     static func onScore(_ part: ScorePart, in parts: [ScorePart]) -> Double {
-        (part.points - 100) / Double(max(parts.count, 1))
+        let w = parts.map(\.weight).reduce(0, +)
+        return w > 0 ? (part.points - 100) * part.weight / w : 0
     }
 
     static func onSteadiness(_ kind: ScoreKind, _ result: DayResult) -> Double? {

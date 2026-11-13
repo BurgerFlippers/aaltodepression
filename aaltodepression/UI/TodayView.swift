@@ -3,16 +3,32 @@ import SwiftUI
 /// Today: what to do first, then how the day sits against the usual.
 struct TodayView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showHelp = false
+    /// 0 = today (the latest day); 1 = the day before, and so on.
+    @State private var offset = 0
+
+    private var shown: StepDay? {
+        let h = model.history
+        let i = h.count - 1 - offset
+        return h.indices.contains(i) ? h[i] : nil
+    }
+
+    private func move(_ delta: Int) {
+        let next = min(max(0, model.history.count - 1), max(0, offset + delta))
+        guard next != offset else { return }
+        withAnimation(reduceMotion ? nil : .snappy) { offset = next }
+    }
 
     var body: some View {
         @Bindable var model = model
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    header
-                    if let c = model.current {
-                        if ActionCard.needsCard(c, model) {
+                    if let c = shown {
+                        if offset > 0 {
+                            PastLine(day: c)
+                        } else if ActionCard.needsCard(c, model) {
                             ActionCard(day: c)
                         } else {
                             StatusLine(day: c)
@@ -50,6 +66,19 @@ struct TodayView: View {
                             .font(.subheadline.weight(.semibold))
                             .frame(minHeight: 44)
                         }
+                        Button { showHelp = true } label: {
+                            Label("Get help now", systemImage: "phone.fill")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                        .accessibilityHint("Shows numbers you can call right away")
+                        Button { model.showSettings = true } label: {
+                            Label(model.isDemo ? "Settings and demo" : "Settings", systemImage: "gearshape")
+                                .frame(minHeight: 44)
+                        }
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
                     } else {
                         ContentUnavailableView("No days to show yet", systemImage: "sun.horizon",
                                                description: Text("Usual needs a week of Health data before it can compare a day with your usual."))
@@ -59,16 +88,17 @@ struct TodayView: View {
                 .padding(.bottom, 24)
             }
             .contentMargins(.bottom, 96, for: .scrollContent)   // clears the floating tab bar
-            .navigationTitle(model.isDemo ? "Today" : "Yesterday")
+            .contentMargins(.top, 16, for: .scrollContent)
+            .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: model.scoredDay) { offset = 0 }
+            .gesture(DragGesture(minimumDistance: 40).onEnded { v in
+                guard abs(v.translation.width) > abs(v.translation.height) * 2 else { return }
+                move(v.translation.width > 0 ? 1 : -1)
+            })
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { model.showSettings = true } label: { Image(systemName: "gearshape") }
-                        .accessibilityLabel("Settings")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showHelp = true } label: { HStack(spacing: 6) { Image(systemName: "phone.fill"); Text("Help") } }
-                        .accessibilityHint("Shows numbers you can call right away")
-                }
+                ToolbarItem(placement: .principal) { dayPicker }
+
+
             }
             .sheet(isPresented: $showHelp) { HelpView() }
             .sheet(isPresented: $model.showSettings) { SettingsView() }
@@ -76,14 +106,51 @@ struct TodayView: View {
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(Format.date(model.scoredDay)).font(.title3.weight(.semibold))
-            if model.isDemo {
-                Text("Demo with Perttu, day \(model.demoDay)").font(.subheadline).foregroundStyle(.secondary)
+    private var dayPicker: some View {
+        let day = shown?.day ?? model.scoredDay
+        let title = offset == 0 ? (model.isDemo ? "Today" : "Yesterday")
+            : day.start().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        return HStack(spacing: 2) {
+            Button { move(1) } label: { Image(systemName: "chevron.left").frame(width: 40, height: 40) }
+                .disabled(offset >= model.history.count - 1)
+                .accessibilityLabel("Previous day")
+            VStack(spacing: 0) {
+                Text(title).font(.headline).contentTransition(.numericText())
+                Text(model.isDemo ? "Perttu, day \(DemoSource.number(of: day))" : Format.date(day))
+                    .font(.caption).foregroundStyle(.secondary)
             }
+            .frame(minWidth: 150)
+            .onTapGesture { move(-offset) }
+            .accessibilityElement(children: .combine)
+            .accessibilityHint(offset > 0 ? "Double tap to go back to today" : "")
+            Button { move(-1) } label: { Image(systemName: "chevron.right").frame(width: 40, height: 40) }
+                .disabled(offset == 0)
+                .accessibilityLabel("Next day")
         }
-        .accessibilityElement(children: .combine)
+    }
+}
+
+/// What an earlier day looked like, in one quiet line.
+struct PastLine: View {
+    @Environment(AppModel.self) private var model
+    let day: StepDay
+
+    var body: some View {
+        Label { Text(text).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "clock.arrow.circlepath").foregroundStyle(Palette.tint) }
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .combine)
+    }
+
+    private var text: String {
+        let r = day.result
+        switch day.step {
+        case .reachOut: return "On this day Usual brought in \(model.plan.friendName) and \(model.plan.nurseName)."
+        case .nudge: return "On this day Usual suggested one thing from your plan."
+        case .steady:
+            if r.likelyIll { return "Looked like a cold. Not counted against you." }
+            if r.travelling { return "You were travelling. Not counted against you." }
+            return "Nothing was needed this day."
+        }
     }
 }
 

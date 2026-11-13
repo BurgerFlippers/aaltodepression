@@ -217,7 +217,9 @@ struct DayBreakdown: View {
     @State private var expanded: Set<ScoreKind> = []
     @State private var showUnscored = false
 
-    private static let oneSided: Set<String> = [F.steps, F.exerciseMin, F.activeHours, F.awayHours, F.placesVisited, Scorer.sleep3Key]
+    private static let twoSided: Set<String> = [F.sleepHours, F.bedtime, F.wake, F.awakeMin, F.walkingSpeed, F.stepLength,
+                                                  F.restingHR, F.hrv, F.wristTemp, F.respRate, F.heartRate, F.heartRateMin,
+                                                  F.heartRateMax, F.bodyMass, F.basalEnergy, Scorer.midpointKey]
 
     var body: some View {
         let r = day.result
@@ -298,14 +300,7 @@ struct DayBreakdown: View {
     }
 
     private func rows(_ kind: ScoreKind) -> [ScorePart] {
-        let r = day.result
-        if kind == .daylight, let s = r.scores[.daylight] {
-            let minutes = s / 100 * r.daylightTarget
-            return [ScorePart(key: r.daylightEstimated ? F.daylightWalkMin : F.daylightMin,
-                              value: table.value(F.daylightMin, day.day) ?? table.value(F.daylightWalkMin, day.day) ?? minutes,
-                              usual: Usual(median: r.daylightTarget, mad: 0), points: s)]
-        }
-        let ps = r.parts[kind] ?? []
+        let ps = day.result.parts[kind] ?? []
         return ps.sorted { Effects.onScore($0, in: ps) < Effects.onScore($1, in: ps) }
     }
 
@@ -325,8 +320,8 @@ struct DayBreakdown: View {
     private func partRow(_ p: ScorePart, all: [ScorePart]) -> some View {
         let info = Explain.info(p.key)
         let isDaylight = p.key == F.daylightMin || p.key == F.daylightWalkMin
-        let effect = isDaylight ? p.points - 100 : Effects.onScore(p, in: all)
-        let above = (Self.oneSided.contains(p.key) || isDaylight) && (p.usual.map { p.value > $0.median } ?? false)
+        let effect = Effects.onScore(p, in: all)
+        let above = p.points >= 100 && (p.usual.map { p.value > $0.median } ?? false) && !Self.twoSided.contains(p.key)
         return HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(info.title)
