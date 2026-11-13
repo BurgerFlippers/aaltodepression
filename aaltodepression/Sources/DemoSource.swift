@@ -52,16 +52,18 @@ nonisolated enum DemoSource {
     private static func add(_ n: Int, to t: inout FeatureTable, tz: TimeZone) {
         let d = day(n)
         let cold = (30...32).contains(n)
+        // Single short nights before the drift. Perttu did slow breathing on each and was back the next days.
+        let dip = [15, 21, 27, 35].contains(n)
         let trip = (38...40).contains(n)
         // Drift starts clearly on day 45 and is at full strength by day 46.
         let k = n >= 45 ? min(1.0, 0.75 + Double(n - 45) * 0.25) : 0.0
         func mix(_ steady: Double, _ drifted: Double) -> Double { steady + (drifted - steady) * k }
 
         // Sleep. Bedtime as hours after 18:00 the previous day, wake as hours after midnight.
-        let bedtime = around("bed", n, mix(5.33, 6.95), mix(0.22, 1.0)) + (trip ? -0.4 : 0)
+        let bedtime = around("bed", n, mix(5.33, 6.95), mix(0.22, 1.0)) + (trip ? -0.4 : 0) + (dip ? 2.2 : 0)
         let wake = around("wake", n, mix(7.17, 7.55), mix(0.18, 0.55)) + (cold ? 0.4 : 0)
         let inBed = (wake + 6) - bedtime
-        let awakeMin = max(5, around("awake", n, mix(24, 62), mix(6, 14)) + (cold ? 15 : 0))
+        let awakeMin = max(5, around("awake", n, mix(24, 62), mix(6, 14)) + (cold ? 15 : 0) + (dip ? 35 : 0))
         let sleep = max(3.5, inBed - awakeMin / 60)
         t.set(F.bedtime, d, bedtime)
         t.set(F.wake, d, wake)
@@ -78,6 +80,7 @@ nonisolated enum DemoSource {
         // Movement.
         var steps = around("steps", n, mix(6000, 3000), mix(850, 500))
         if cold { steps = around("steps-cold", n, 3400, 400) }
+        if dip { steps = around("steps-dip", n, 3600, 300) }
         if trip { steps = around("steps-trip", n, 9800, 900) }
         steps = max(400, steps)
         t.set(F.steps, d, steps.rounded())
@@ -101,8 +104,18 @@ nonisolated enum DemoSource {
         var daylight = uniform("daylight", n, 25, 35)
         if n >= 45 { daylight = mix(daylight, uniform("daylight-drift", n, 3, 9)) }
         if cold { daylight = uniform("daylight-cold", n, 6, 12) }
+        if dip { daylight = uniform("daylight-dip", n, 6, 12) }
         if trip { daylight = uniform("daylight-trip", n, 40, 60) }
         t.set(F.daylightMin, d, daylight.rounded())
+        // Hourly steps, spread over waking hours with a morning and an afternoon peak.
+        let wakeHour = Int((7.17 + (n >= 45 ? 0.4 : 0)).rounded())
+        let bedHour = min(23, Int((18 + bedtime).truncatingRemainder(dividingBy: 24)))
+        var weights = [Double](repeating: 0, count: 24)
+        for h in 0..<24 where h >= wakeHour && (h <= bedHour || bedHour < wakeHour) {
+            weights[h] = 0.4 + (h == 8 || h == 17 ? 1.6 : 0) + (h == 12 ? 1 : 0) + unit("hw\(h)", n) * 0.8
+        }
+        let wsum = max(weights.reduce(0, +), 1)
+        for h in 0..<24 where weights[h] > 0 { t.set(F.stepsHour(h), d, (steps * weights[h] / wsum).rounded()) }
         var activeH = around("activeh", n, mix(9, 5), mix(1, 1.2))
         if cold { activeH = around("activeh-cold", n, 4, 0.6) }
         if trip { activeH = around("activeh-trip", n, 12, 0.8) }
@@ -138,7 +151,7 @@ nonisolated enum DemoSource {
         t.set(F.workoutCount, d, workouts)
         t.set(F.workoutMin, d, workouts > 0 ? around("wmin", n, 36, 8).rounded() : 0)
         t.set(F.workoutTypes, d, workouts)
-        t.set(F.mindfulMin, d, n < 45 && chance("mindful", n, 0.25) ? 5 : 0)
+        t.set(F.mindfulMin, d, dip ? 5 : (n < 45 && chance("mindful", n, 0.25) ? 5 : 0))
         t.set(F.hrHighEvents, d, 0)
         t.set(F.hrLowEvents, d, 0)
         t.set(F.irregularRhythmEvents, d, 0)

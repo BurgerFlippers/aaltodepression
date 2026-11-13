@@ -2,10 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Counts how many events you have each day and how long they last. Titles and details are never read.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Counts how many photos you take each day and whether they were taken away from home. The pictures are never opened.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

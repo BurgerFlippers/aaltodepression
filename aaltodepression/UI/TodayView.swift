@@ -1,150 +1,206 @@
 import SwiftUI
 
+/// Today: what to do first, then how the day sits against the usual.
 struct TodayView: View {
     @Environment(AppModel.self) private var model
-    @State private var detail: ScoreKind?
     @State private var showHelp = false
-    /// 0 = the latest day; 1 = the day before, and so on.
-    @State private var offset = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var shown: StepDay? {
-        let h = model.history
-        let i = h.count - 1 - offset
-        return h.indices.contains(i) ? h[i] : nil
-    }
-    private var maxOffset: Int { max(0, model.history.count - 1) }
-
-    private func move(_ delta: Int) {
-        let next = min(maxOffset, max(0, offset + delta))
-        guard next != offset else { return }
-        withAnimation(reduceMotion ? nil : .snappy) { offset = next }
-    }
 
     var body: some View {
+        @Bindable var model = model
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 22) {
                     header
-                    if let c = shown {
-                        DayHeadline(day: c)
-                        StripesView(result: c.result, locationEnabled: model.locationEnabled) { detail = $0 }
-                            .gesture(DragGesture(minimumDistance: 30).onEnded { v in
-                                guard abs(v.translation.width) > abs(v.translation.height) else { return }
-                                move(v.translation.width > 0 ? 1 : -1)
-                            })
-                        if offset == 0 { StateSection(day: c) } else { PastStateLine(day: c) }
-                        HistoryChart(days: model.history, selected: c.day)
+                    if let c = model.current {
+                        ActionCard(day: c)
+                        VStack(alignment: .leading, spacing: 14) {
+                            if let s = c.result.steadiness {
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(SteadinessBand(s).words)
+                                        .font(.title2.weight(.semibold))
+                                    Spacer()
+                                    if model.showsSteadiness {
+                                        Text("Steadiness \(Int(s.rounded()))")
+                                            .font(.subheadline.weight(.semibold)).monospacedDigit()
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .accessibilityElement(children: .combine)
+                                .accessibilityAddTraits(.isHeader)
+                            }
+                            StripesView(result: c.result, locationEnabled: model.locationEnabled) { kind in
+                                model.openDays(c.day, focus: kind)
+                            }
+                            Button {
+                                model.openDays(c.day)
+                            } label: {
+                                Label("Why these numbers", systemImage: "chevron.right")
+                                    .labelStyle(TrailingIconLabelStyle())
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .frame(minHeight: 44)
+                        }
                     } else {
                         ContentUnavailableView("No days to show yet", systemImage: "sun.horizon",
                                                description: Text("Usual needs a week of Health data before it can compare a day with your usual."))
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 32)
+                .padding(.bottom, 24)
             }
-            .navigationTitle(offset > 0 ? "Earlier" : (model.isDemo ? "Today" : "Yesterday"))
-            .onChange(of: model.scoredDay) { offset = 0 }
+            .contentMargins(.bottom, 96, for: .scrollContent)   // clears the floating tab bar
+            .navigationTitle(model.isDemo ? "Today" : "Yesterday")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { model.showSettings = true } label: { Image(systemName: "gearshape") }
+                        .accessibilityLabel("Settings")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showHelp = true } label: { HStack(spacing: 6) { Image(systemName: "phone.fill"); Text("Help") } }
                         .accessibilityHint("Shows numbers you can call right away")
                 }
             }
-            .sheet(item: $detail) { kind in
-                if let c = shown { ScoreDetailView(kind: kind, result: c.result) }
-            }
             .sheet(isPresented: $showHelp) { HelpView() }
+            .sheet(isPresented: $model.showSettings) { SettingsView() }
             .refreshable { if !model.isDemo { await model.readEverything() } }
         }
     }
 
     private var header: some View {
-        let day = shown?.day ?? model.scoredDay
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 4) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(Format.date(day))
-                        .font(.title3.weight(.semibold))
-                        .contentTransition(.numericText())
-                    if model.isDemo {
-                        Text("Demo with Perttu, day \(DemoSource.number(of: day))")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .accessibilityElement(children: .combine)
-                Spacer()
-                Button { move(1) } label: {
-                    Image(systemName: "chevron.left").frame(width: 44, height: 44)
-                }
-                .disabled(offset >= maxOffset)
-                .accessibilityLabel("Previous day")
-                Button { move(-1) } label: {
-                    Image(systemName: "chevron.right").frame(width: 44, height: 44)
-                }
-                .disabled(offset == 0)
-                .accessibilityLabel("Next day")
-            }
-            .font(.title3.weight(.semibold))
-            if offset > 0 {
-                Button("Back to \(model.isDemo ? "today" : "yesterday")") { move(-offset) }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minHeight: 44)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(Format.date(model.scoredDay)).font(.title3.weight(.semibold))
+            if model.isDemo {
+                Text("Demo with Perttu, day \(model.demoDay)").font(.subheadline).foregroundStyle(.secondary)
             }
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
-/// A short look back: what the app showed on an earlier day.
-struct PastStateLine: View {
+struct TrailingIconLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) { configuration.title; configuration.icon.imageScale(.small) }
+    }
+}
+
+// MARK: - What to do today
+
+struct ActionCard: View {
     @Environment(AppModel.self) private var model
     let day: StepDay
 
     var body: some View {
-        CalmLine(text: text)
+        VStack(alignment: .leading, spacing: 10) {
+            content
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.tint.opacity(0.1), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .contain)
     }
 
-    private var text: String {
-        let r = day.result
+    @ViewBuilder private var content: some View {
         switch day.step {
-        case .reachOut:
-            return "On this day your message to \(model.plan.friendName) was set to go out, and \(model.plan.nurseName) was going to call."
+        case .reachOut: ReachOutContent()
         case .nudge:
-            let a = ActionPicker.pick(plan: model.plan, table: model.table, day: day.since ?? day.day)
-            return "On this day the small thing was: \(a?.action.title.lowercased() ?? "one action from your plan")."
-        case .steady:
-            if r.likelyIll { return "Heart rate and wrist temperature were up, like during a cold. Left out of the comparison." }
-            if r.travelling { return "You were away from home. Left out of the comparison." }
-            if let s = r.dayScore, let b = day.baselineDay, s < b - 10 { return "A quieter day than usual." }
-            return "Close to your usual."
+            if let s = model.suggestion { NudgeContent(suggestion: s) } else { steady }
+        case .steady: steady
+        }
+    }
+
+    @ViewBuilder private var steady: some View {
+        let r = day.result
+        if r.likelyIll {
+            Text("Nothing needed today.").font(.title3.weight(.semibold))
+            Text("Looks like a cold. Usual is not counting today against you.").foregroundStyle(.secondary)
+        } else if r.travelling {
+            Text("Nothing needed today.").font(.title3.weight(.semibold))
+            Text("You're travelling. Usual is not counting today against you.").foregroundStyle(.secondary)
+        } else {
+            Text("Nothing needed today.").font(.title3.weight(.semibold))
+            Text("Your days look like your usual.").foregroundStyle(.secondary)
         }
     }
 }
 
-// MARK: - The one number
-
-/// The day in one number, then one sentence. The stripes below show what it's made of.
-struct DayHeadline: View {
-    let day: StepDay
+struct NudgeContent: View {
+    @Environment(AppModel.self) private var model
+    let suggestion: SuggestedAction
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(day.result.dayScore.map { "\(Int($0.rounded()))" } ?? "–")
-                    .font(.system(size: 76, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                Text("of 100").font(.title3).foregroundStyle(.secondary)
+        let a = suggestion.action
+        if let done = model.doneToday(a) {
+            Label {
+                Text("Done. Noticed \(noticed(done)).").font(.title3.weight(.semibold))
+            } icon: {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.tint)
             }
-            Text(Explain.headline(day))
-                .font(.title3.weight(.semibold))
-            if let gap = Explain.biggestGap(day) {
-                Text(gap).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text("From your plan with \(model.plan.nurseName). Nothing else needed today.")
+                .foregroundStyle(.secondary)
+        } else {
+            Text("One small thing for today").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+            Text("\(a.title)?").font(.title2.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+            Text(historyLine).foregroundStyle(.secondary)
+            if let source { Label(source, systemImage: "applewatch").font(.subheadline).foregroundStyle(.secondary) }
+        }
+    }
+
+    private var historyLine: String {
+        guard let r = model.records[suggestion.action.key], r.tried > 0 else { return "Not tried yet. It's in your plan with \(model.plan.nurseName)." }
+        return "Helped \(r.helped) of \(r.tried) \(r.tried == 1 ? "time" : "times") before."
+    }
+
+    private var source: String? {
+        guard let key = suggestion.action.seenBy, let info = FeatureCatalog.byKey[key] else { return nil }
+        return info.device == .watch ? "Your watch will notice it" : "Your iPhone will notice it"
+    }
+
+    private func noticed(_ v: Double) -> String {
+        switch suggestion.action.seenBy {
+        case F.mindfulMin?: "\(Int(v.rounded())) min of breathing"
+        case F.daylightMin?: "\(Int(v.rounded())) min of daylight"
+        case F.steps?: "\(Format.value(v, .integer("steps")))"
+        default: "it"
+        }
+    }
+}
+
+struct ReachOutContent: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var model = model
+        let plan = model.plan
+        Text("Let's bring people in.").font(.title2.weight(.semibold))
+        Text(model.messageCancelled ? "Not sending to \(plan.friendName) this time." : "Your message to \(plan.friendName) goes out tomorrow at 12:00.")
+            .fixedSize(horizontal: false, vertical: true)
+        QuoteBlock(text: plan.friendMessage).opacity(model.messageCancelled ? 0.5 : 1)
+        if model.messageCancelled {
+            Button("Send it after all") { model.messageCancelled = false }
+                .buttonStyle(.bordered).controlSize(.large)
+        } else {
+            HStack(spacing: 10) {
+                Button("Send now") { model.showCompose = true }
+                    .buttonStyle(.borderedProminent).controlSize(.large)
+                Button("Not this time") { model.messageCancelled = true }
+                    .buttonStyle(.bordered).controlSize(.large)
             }
         }
+        Divider().padding(.vertical, 2)
+        Label("\(plan.nurseName) will call you this week.", systemImage: "phone.arrow.down.left")
+    }
+}
+
+struct QuoteBlock: View {
+    let text: String
+    var body: some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 1).fill(Palette.tint.opacity(0.5)).frame(width: 2)
+            Text(text).font(.body).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Day score")
+        .accessibilityLabel("Message: \(text)")
     }
 }
 
@@ -158,18 +214,12 @@ struct StripesView: View {
     var kinds: [ScoreKind] { ScoreKind.allCases.filter { $0 != .places || locationEnabled } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(spacing: 8) {
-                ForEach(kinds) { kind in
-                    Button { onSelect(kind) } label: {
-                        StripeRow(kind: kind, score: result.scores[kind])
-                    }
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(kinds) { kind in
+                Button { onSelect(kind) } label: { StripeRow(kind: kind, score: result.scores[kind]) }
                     .buttonStyle(StripeButtonStyle())
-                }
             }
-            Text("A full stripe means your usual or better.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            Text("A full stripe means your usual or better.").font(.footnote).foregroundStyle(.secondary)
         }
     }
 }
@@ -184,7 +234,7 @@ struct StripeRow: View {
     let kind: ScoreKind
     let score: Double?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ScaledMetric(relativeTo: .body) private var height: CGFloat = 46
+    @ScaledMetric(relativeTo: .body) private var height: CGFloat = 40
     @ScaledMetric(relativeTo: .body) private var labelWidth: CGFloat = 92
     @ScaledMetric(relativeTo: .body) private var valueWidth: CGFloat = 38
 
@@ -192,9 +242,7 @@ struct StripeRow: View {
         let color = Palette.stripe(kind)
         let fraction = (score ?? 0) / 100
         HStack(spacing: 12) {
-            Text(kind.title)
-                .font(.body.weight(.medium))
-                .frame(width: labelWidth, alignment: .leading)
+            Text(kind.title).font(.body.weight(.medium)).frame(width: labelWidth, alignment: .leading)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Rectangle().fill(color.opacity(score == nil ? 0.1 : 0.28))
@@ -205,8 +253,7 @@ struct StripeRow: View {
             .frame(height: height)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             Text(score.map { "\(Int($0.rounded()))" } ?? "–")
-                .font(.body.weight(.semibold))
-                .monospacedDigit()
+                .font(.body.weight(.semibold)).monospacedDigit()
                 .foregroundStyle(score == nil ? .secondary : .primary)
                 .frame(width: valueWidth, alignment: .trailing)
         }
@@ -215,141 +262,8 @@ struct StripeRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(kind.title)
-        .accessibilityValue(spokenValue)
-        .accessibilityHint("Shows what this is based on")
+        .accessibilityValue(score.map { s in "\(Int(s.rounded())) of 100, " + (s >= 95 ? "at your usual" : "below your usual") } ?? "No data for this day")
+        .accessibilityHint("Shows this score in Days")
         .accessibilityAddTraits(.isButton)
-    }
-
-    private var spokenValue: String {
-        guard let s = score else { return "No data for this day" }
-        let n = Int(s.rounded())
-        return n >= 95 ? "\(n) of 100, your usual" : "\(n) of 100, below your usual"
-    }
-}
-
-// MARK: - What the day calls for
-
-struct StateSection: View {
-    @Environment(AppModel.self) private var model
-    let day: StepDay
-
-    var body: some View {
-        switch day.step {
-        case .reachOut: ReachOutView()
-        case .nudge: if let s = model.suggestion { NudgeView(suggestion: s) }
-        case .steady: CalmLine(text: calmText)
-        }
-    }
-
-    private var calmText: String {
-        let r = day.result
-        if r.likelyIll {
-            return "Your heart rate and wrist temperature are up, like during a cold. Days like this are left out of the comparison."
-        }
-        if r.travelling {
-            return "You're away from home. Days on the road look different, so they are left out of the comparison."
-        }
-        if let s = r.dayScore, let b = day.baselineDay, s < b - 10 {
-            return "A quieter day than usual. Nothing to do about it."
-        }
-        return "Close to your usual. Nothing to do today."
-    }
-}
-
-struct CalmLine: View {
-    let text: String
-    var body: some View {
-        Text(text)
-            .font(.body)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-}
-
-struct NudgeView: View {
-    @Environment(AppModel.self) private var model
-    let suggestion: SuggestedAction
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("One small thing for today")
-                .font(.headline)
-            Text(suggestion.action.title)
-                .font(.title2.weight(.semibold))
-                .fixedSize(horizontal: false, vertical: true)
-            if let why = reason {
-                Text(why).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-            if let seen = seenLine {
-                Label(seen, systemImage: "applewatch")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Text("From your plan with \(model.plan.nurseName).")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.tint.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .accessibilityElement(children: .combine)
-    }
-
-    private var info: SignalInfo? { suggestion.action.seenBy.flatMap { FeatureCatalog.byKey[$0] } }
-
-    private var reason: String? {
-        guard let info, let x = suggestion.todayValue, let u = suggestion.usual, x < u.median else { return nil }
-        return "\(info.title): \(Format.value(x, info.format)) today. Usually about \(Format.value(u.median, info.format))."
-    }
-
-    private var seenLine: String? {
-        guard let info else { return nil }
-        if let x = suggestion.todayValue, let u = suggestion.usual, x >= u.median {
-            return "Seen today: \(Format.value(x, info.format))"
-        }
-        return info.device == .watch ? "Your Watch will notice it." : "Your iPhone will notice it."
-    }
-}
-
-struct ReachOutView: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        @Bindable var model = model
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(model.messageCancelled
-                     ? "Your message to \(model.plan.friendName) won't go out."
-                     : "\(model.plan.friendName) gets your message tomorrow at 12:00.")
-                    .font(.title3.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(model.plan.friendMessage)
-                    .font(.body)
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .opacity(model.messageCancelled ? 0.5 : 1)
-                    .accessibilityLabel("Message: \(model.plan.friendMessage)")
-                Text("You wrote this with \(model.plan.nurseName). It goes out on its own unless you cancel.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button(model.messageCancelled ? "Send it after all" : "Cancel message") {
-                    model.messageCancelled.toggle()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-            }
-            Divider()
-            Label {
-                Text("\(model.plan.nurseName) will call you this week. You don't need to prepare anything.")
-                    .fixedSize(horizontal: false, vertical: true)
-            } icon: {
-                Image(systemName: "phone.arrow.down.left")
-            }
-            .font(.body)
-        }
-        .padding(18)
-        .background(Palette.tint.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }

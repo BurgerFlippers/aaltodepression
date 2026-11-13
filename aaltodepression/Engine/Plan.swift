@@ -32,28 +32,20 @@ nonisolated struct SuggestedAction: Sendable {
 }
 
 nonisolated enum ActionPicker {
-    /// Picks one action, preferring ones the data can confirm and that are furthest below usual.
-    static func pick(plan: CarePlan, table: FeatureTable, day: Day) -> SuggestedAction? {
-        var best: (score: Double, s: SuggestedAction)?
-        for (i, a) in plan.actions.enumerated() {
-            var score = 1000.0 + Double(i)   // unconfirmable actions come last, in plan order
-            var today: Double?
-            var usual: Usual?
-            if let key = a.seenBy {
-                today = table.value(key, day)
-                usual = Baseline.usual(key, in: table, for: day)
-                if let x = today, let u = usual {
-                    // Lower than usual = more useful to suggest. Score is the robust z (negative = below).
-                    score = (x - u.median) / (1.4826 * u.mad) + Double(i) * 0.01
-                } else if usual != nil {
-                    score = 0 + Double(i) * 0.01
-                } else {
-                    score = 500 + Double(i)
-                }
+    /// Picks the action with the best "helped" record that the data can confirm.
+    /// Untried confirmable actions come next, actions only the person can report come last.
+    static func pick(plan: CarePlan, table: FeatureTable, day: Day, records: [String: ActionRecord]) -> SuggestedAction? {
+        let ranked = plan.actions.enumerated().sorted { a, b in
+            func rank(_ x: (offset: Int, element: CarePlan.Action)) -> (Int, Double, Int, Int) {
+                let r = records[x.element.key]
+                let group = x.element.seenBy == nil ? 2 : ((r?.tried ?? 0) > 0 ? 0 : 1)
+                return (group, -(r?.ratio ?? -1), -(r?.tried ?? 0), x.offset)
             }
-            let s = SuggestedAction(action: a, todayValue: today, usual: usual)
-            if best == nil || score < best!.score { best = (score, s) }
+            return rank(a) < rank(b)
         }
-        return best?.s
+        guard let a = ranked.first?.element else { return nil }
+        let key = a.seenBy
+        return SuggestedAction(action: a, todayValue: key.flatMap { table.value($0, day) },
+                               usual: key.flatMap { Baseline.usual($0, in: table, for: day) })
     }
 }

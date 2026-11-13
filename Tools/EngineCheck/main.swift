@@ -19,7 +19,7 @@ for sd in days {
     if r.travelling { flags.append("travel") }
     print(String(format: "%4d", n), sd.day, f(r.scores[.sleep]), f(r.scores[.rhythm]), f(r.scores[.movement]),
           f(r.scores[.daylight]), f(r.scores[.places]), f(r.scores[.body]), "|",
-          f(r.dayScore), f(sd.baselineDay), sd.isDrift ? "  yes" : "    .", String(format: "%2d", sd.driftDaysInLastWeek),
+          f(r.steadiness), f(sd.baselineDay), sd.isDrift ? "  yes" : "    .", String(format: "%2d", sd.driftDaysInLastWeek),
           String(format: "%4d", sd.step.rawValue), flags.joined(separator: ","))
     if sd.step == .nudge, firstNudge == nil { firstNudge = n }
     if sd.step == .reachOut, firstReach == nil { firstReach = n }
@@ -41,7 +41,11 @@ if !missing.isEmpty { failures.append("demo lacks features: \(missing)") }
 let plan = try CarePlan.load(from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])))
 for n in [49, 50, 55] {
     let d = DemoSource.day(n)
-    if let s = ActionPicker.pick(plan: plan, table: table.truncated(through: d), day: d) { print("day \(n) action:", s.action.title) }
+    let recs = ActionHistory.records(plan: plan, history: days, table: table, before: d)
+    if let s = ActionPicker.pick(plan: plan, table: table.truncated(through: d), day: d, records: recs) {
+        print("day \(n) action:", s.action.title, recs.values.map { "\($0.action.key) \($0.helped)/\($0.tried)" }.sorted())
+        if s.action.key != "breath" { failures.append("day \(n) suggests \(s.action.key), expected breath") }
+    }
 }
 
 print("\nstep 1 first on day \(firstNudge.map(String.init) ?? "–"), step 2 first on day \(firstReach.map(String.init) ?? "–")")

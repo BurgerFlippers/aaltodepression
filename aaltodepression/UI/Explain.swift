@@ -16,7 +16,7 @@ enum Explain {
 
     /// How today sits against the usual day, without a verdict.
     static func headline(_ day: StepDay) -> String {
-        guard let s = day.result.dayScore else { return "Not enough data for this day" }
+        guard let s = day.result.steadiness else { return "Not enough data for this day" }
         guard let b = day.baselineDay else { return "Still learning your usual" }
         if s >= b - 5 { return "Close to your usual" }
         if s >= b - 15 { return "A little further from your usual" }
@@ -26,7 +26,7 @@ enum Explain {
     /// The single part that pulled the day down most, as one plain sentence.
     static func biggestGap(_ day: StepDay) -> String? {
         let r = day.result
-        guard let s = r.dayScore, let b = day.baselineDay, s < b - 5 else { return nil }
+        guard let s = r.steadiness, let b = day.baselineDay, s < b - 5 else { return nil }
         var worst: (cost: Double, kind: ScoreKind, part: ScorePart?)?
         for (kind, score) in r.scores {
             let cost = (100 - score) * kind.weight

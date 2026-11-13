@@ -38,9 +38,9 @@ nonisolated enum StepEngine {
         // features have a usual, are scored from one or two signals and would inflate the baseline.
         let fullest = results.map(\.coverage).max() ?? 0
         let comparable = fullest * minimumCoverageShare
-        var dayScores: [Day: Double] = [:]
+        var steadinessByDay: [Day: Double] = [:]
         for r in results where r.coverage >= comparable {
-            if let s = r.dayScore { dayScores[r.day] = s }
+            if let s = r.steadiness { steadinessByDay[r.day] = s }
         }
 
         var out: [StepDay] = []
@@ -50,11 +50,11 @@ nonisolated enum StepEngine {
 
         for r in results {
             let w = Baseline.window(for: r.day)
-            let past = Day.range(w.from, w.to).compactMap { dayScores[$0] }.sorted()
+            let past = Day.range(w.from, w.to).compactMap { steadinessByDay[$0] }.sorted()
             let baselineDay = past.count >= Baseline.minimumDays ? Baseline.median(past) : nil
 
             var isDrift = false
-            if let b = baselineDay, let s = dayScores[r.day] {
+            if let b = baselineDay, let s = steadinessByDay[r.day] {
                 isDrift = s < b - driftMargin && !r.likelyIll && !r.travelling
             }
             drift[r.day] = isDrift

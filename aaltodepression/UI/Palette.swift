@@ -24,6 +24,9 @@ nonisolated enum Palette {
         }
     }
 
+    /// Ochre for daylight marks on the rhythm chart.
+    static let daylight = Color(light: 0xC58A12, dark: 0xE7B648)
+
     static let ground = Color(uiColor: .systemBackground)
 }
 

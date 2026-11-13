@@ -260,10 +260,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Usual;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Counts how many events you have each day and how long they last. Titles and details are never read.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads sleep, movement, heart, daylight and other Health data to notice changes in your daily rhythm. Everything is worked out on this phone.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Only used to save a practice breathing session when you ask for it in Settings.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Counts time at home and places visited. Locations never leave this phone.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Counts time at home and places visited. Locations never leave this phone.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Reads whether you were still, walking or travelling, to understand your days.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Counts how many photos you take each day and whether they were taken away from home. The pictures are never opened.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -312,10 +315,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Usual;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Counts how many events you have each day and how long they last. Titles and details are never read.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads sleep, movement, heart, daylight and other Health data to notice changes in your daily rhythm. Everything is worked out on this phone.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Only used to save a practice breathing session when you ask for it in Settings.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Counts time at home and places visited. Locations never leave this phone.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Counts time at home and places visited. Locations never leave this phone.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Reads whether you were still, walking or travelling, to understand your days.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Counts how many photos you take each day and whether they were taken away from home. The pictures are never opened.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

@@ -297,9 +297,11 @@ nonisolated struct HealthKitSource: Sendable {
         let result = try await query.result(for: store)
         var active: [Day: Double] = [:], daylight: [Day: Double] = [:]
         var sun: [Day: (Date?, Date?)] = [:]
+        var perHour: [String: [Day: Double]] = [:]
         result.enumerateStatistics(from: from, to: to) { stats, _ in
             guard let steps = stats.sumQuantity()?.doubleValue(for: .count()) else { return }
             let day = Day(stats.startDate, calendar: calendar)
+            perHour[F.stepsHour(calendar.component(.hour, from: stats.startDate)), default: [:]][day] = steps
             active[day, default: 0] += steps >= Self.activeHourSteps ? 1 : 0
             if sun[day] == nil {
                 let s = Solar.times(date: stats.startDate, latitude: latitude, longitude: longitude, timeZone: calendar.timeZone)
@@ -313,6 +315,7 @@ nonisolated struct HealthKitSource: Sendable {
         var t = FeatureTable()
         for (d, v) in active { t.set(F.activeHours, d, v) }
         for d in active.keys { t.set(F.daylightWalkMin, d, daylight[d] ?? 0) }
+        for (k, days) in perHour { for (d, v) in days { t.set(k, d, v) } }
         return t
     }
 

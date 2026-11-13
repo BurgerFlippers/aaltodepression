@@ -43,7 +43,7 @@ nonisolated struct DayResult: Sendable {
     let day: Day
     var scores: [ScoreKind: Double] = [:]
     var parts: [ScoreKind: [ScorePart]] = [:]
-    var dayScore: Double?
+    var steadiness: Double?
     /// Sum of the weights of the scores that were available (0...1).
     var coverage: Double = 0
     var likelyIll = false
@@ -168,7 +168,7 @@ nonisolated struct Scorer: Sendable {
         let totalWeight = available.keys.map(\.weight).reduce(0, +)
         r.coverage = totalWeight
         if totalWeight > 0 {
-            r.dayScore = available.map { $0.key.weight * $0.value }.reduce(0, +) / totalWeight
+            r.steadiness = available.map { $0.key.weight * $0.value }.reduce(0, +) / totalWeight
         }
 
         // Context flags. Never shown as health claims.

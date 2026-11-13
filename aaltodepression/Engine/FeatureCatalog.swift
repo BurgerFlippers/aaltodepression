@@ -79,6 +79,8 @@ nonisolated enum F {
     static let stateOfMindValence = "stateOfMindValence", stateOfMindCount = "stateOfMindCount"
     static let phq9 = "phq9", gad7 = "gad7"
     static let medsLogged = "medsLogged", medsSkipped = "medsSkipped"
+    /// Steps in hour h (0 = midnight to 1), for the rhythm chart.
+    static func stepsHour(_ h: Int) -> String { "stepsH\(h)" }
     static let activeHours = "activeHours", daylightWalkMin = "daylightWalkMin"
     static let height = "height", age = "age", sex = "sex"
     static let bodyMass = "bodyMass", basalEnergy = "basalEnergy", cyclingDistance = "cyclingDistance"
