@@ -79,6 +79,7 @@ nonisolated enum F {
     static let stateOfMindValence = "stateOfMindValence", stateOfMindCount = "stateOfMindCount"
     static let phq9 = "phq9", gad7 = "gad7"
     static let medsLogged = "medsLogged", medsSkipped = "medsSkipped"
+    static let activeHours = "activeHours", daylightWalkMin = "daylightWalkMin"
     static let height = "height", age = "age", sex = "sex"
     static let bodyMass = "bodyMass", basalEnergy = "basalEnergy", cyclingDistance = "cyclingDistance"
     static let uvExposure = "uvExposure", water = "water", soundReduction = "soundReduction", falls = "falls"
@@ -119,6 +120,8 @@ nonisolated enum FeatureCatalog {
         h(F.stairDownSpeed, "Stair speed down", .iPhone, .p1, .decimal(2, "m/s")),
         h(F.sixMinWalk, "Six-minute walk estimate", .iPhone, .p1, .integer("m")),
         h(F.walkingSteadiness, "Walking steadiness", .iPhone, .p1, .fractionPercent(0)),
+        h(F.activeHours, "Hours with movement", .iPhone, .p0, .integer("h"), "Hours with at least 250 steps"),
+        h(F.daylightWalkMin, "Walking in daylight, estimated", .iPhone, .p0, .minutes, "From steps between sunrise and sunset; used when there's no Watch daylight"),
         h(F.exerciseMin, "Exercise minutes", .watch, .p0, .minutes),
         h(F.standMin, "Stand minutes", .watch, .p1, .minutes),
         h(F.activeEnergy, "Active energy", .watch, .p1, .integer("kcal")),

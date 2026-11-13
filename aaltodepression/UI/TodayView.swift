@@ -27,6 +27,7 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     header
                     if let c = shown {
+                        DayHeadline(day: c)
                         StripesView(result: c.result, locationEnabled: model.locationEnabled) { detail = $0 }
                             .gesture(DragGesture(minimumDistance: 30).onEnded { v in
                                 guard abs(v.translation.width) > abs(v.translation.height) else { return }
@@ -118,6 +119,32 @@ struct PastStateLine: View {
             if let s = r.dayScore, let b = day.baselineDay, s < b - 10 { return "A quieter day than usual." }
             return "Close to your usual."
         }
+    }
+}
+
+// MARK: - The one number
+
+/// The day in one number, then one sentence. The stripes below show what it's made of.
+struct DayHeadline: View {
+    let day: StepDay
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(day.result.dayScore.map { "\(Int($0.rounded()))" } ?? "–")
+                    .font(.system(size: 76, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                Text("of 100").font(.title3).foregroundStyle(.secondary)
+            }
+            Text(Explain.headline(day))
+                .font(.title3.weight(.semibold))
+            if let gap = Explain.biggestGap(day) {
+                Text(gap).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Day score")
     }
 }
 

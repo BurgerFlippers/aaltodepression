@@ -130,7 +130,7 @@ nonisolated struct HealthKitSource: Sendable {
     }
 
     /// Reads everything concurrently. Returns the table plus how many days each feature returned.
-    func read(days: Int = 365, calendar: Calendar = .current) async -> FeatureTable {
+    func read(days: Int = 365, latitude: Double, longitude: Double, calendar: Calendar = .current) async -> FeatureTable {
         let end = Date()
         let start = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -days, to: end)!)
         return await withTaskGroup(of: FeatureTable.self) { group in
@@ -144,6 +144,7 @@ nonisolated struct HealthKitSource: Sendable {
             group.addTask { (try? await mindful(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             group.addTask { (try? await workouts(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             group.addTask { (try? await nightListening(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
+            group.addTask { (try? await hourlySteps(from: start, to: end, latitude: latitude, longitude: longitude, calendar: calendar)) ?? FeatureTable() }
             if #available(iOS 18.0, *) {
                 group.addTask { (try? await categoryCount(F.breathingEvents, .sleepApneaEvent, present: nil, from: start, to: end, calendar: calendar)) ?? FeatureTable() }
                 group.addTask { (try? await stateOfMind(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
@@ -284,6 +285,38 @@ nonisolated struct HealthKitSource: Sendable {
         }
         return t
     }
+
+    /// From hourly steps, which Health keeps for years: hours that had real movement, and an
+    /// estimate of minutes walking in daylight for people without an Apple Watch.
+    private func hourlySteps(from: Date, to: Date, latitude: Double, longitude: Double, calendar: Calendar) async throws -> FeatureTable {
+        let predicate = HKSamplePredicate.quantitySample(type: HKQuantityType(.stepCount),
+                                                         predicate: HKQuery.predicateForSamples(withStart: from, end: to))
+        let query = HKStatisticsCollectionQueryDescriptor(predicate: predicate, options: .cumulativeSum,
+                                                          anchorDate: calendar.startOfDay(for: from),
+                                                          intervalComponents: DateComponents(hour: 1))
+        let result = try await query.result(for: store)
+        var active: [Day: Double] = [:], daylight: [Day: Double] = [:]
+        var sun: [Day: (Date?, Date?)] = [:]
+        result.enumerateStatistics(from: from, to: to) { stats, _ in
+            guard let steps = stats.sumQuantity()?.doubleValue(for: .count()) else { return }
+            let day = Day(stats.startDate, calendar: calendar)
+            active[day, default: 0] += steps >= Self.activeHourSteps ? 1 : 0
+            if sun[day] == nil {
+                let s = Solar.times(date: stats.startDate, latitude: latitude, longitude: longitude, timeZone: calendar.timeZone)
+                sun[day] = (s.sunrise, s.sunset)
+            }
+            if let rise = sun[day]?.0, let set = sun[day]?.1, stats.startDate >= rise.addingTimeInterval(-1800), stats.startDate < set {
+                // About 100 steps a minute of walking; only clearly walking hours count.
+                if steps >= 300 { daylight[day, default: 0] += min(60, steps / 100) }
+            }
+        }
+        var t = FeatureTable()
+        for (d, v) in active { t.set(F.activeHours, d, v) }
+        for d in active.keys { t.set(F.daylightWalkMin, d, daylight[d] ?? 0) }
+        return t
+    }
+
+    static let activeHourSteps = 250.0
 
     /// Minutes of headphone listening between 23:00 and 05:00, assigned to the night's morning.
     private func nightListening(from: Date, to: Date, calendar: Calendar) async throws -> FeatureTable {

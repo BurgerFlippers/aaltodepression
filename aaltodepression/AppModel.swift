@@ -80,13 +80,14 @@ final class AppModel {
         isReading = true
         defer { isReading = false }
         var t = FeatureTable()
-        if HealthKitSource.isAvailable { t.merge(await HealthKitSource().read()) }
+        let coord = location.approximateLocation?.coordinate
+        let lat = coord?.latitude ?? DemoSource.latitude, lon = coord?.longitude ?? DemoSource.longitude
+        if HealthKitSource.isAvailable { t.merge(await HealthKitSource().read(latitude: lat, longitude: lon)) }
         t.merge(await MotionSource.read())
         t.merge(CalendarSource.read())
         t.merge(PhotosSource.read(home: location.home))
-        let loc = location.approximateLocation?.coordinate
         let days = Day.range(Day(Date()) - 365, Day(Date()) + 1)
-        t.merge(SolarSource.table(days: days, latitude: loc?.latitude ?? DemoSource.latitude, longitude: loc?.longitude ?? DemoSource.longitude))
+        t.merge(SolarSource.table(days: days, latitude: lat, longitude: lon))
         realTable.merge(t)
         if let context { FeatureStore.save(t, context) }
         lastRead = Date()

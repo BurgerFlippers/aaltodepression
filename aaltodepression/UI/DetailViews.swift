@@ -12,23 +12,22 @@ struct ScoreDetailView: View {
                 Section {
                     Text(explanation).fixedSize(horizontal: false, vertical: true)
                 }
-                if kind == .rhythm {
-                    Section("Last 7 days") {
-                        row("Wake time varied by", result.wakeSD.map { Format.value($0, .hoursMinutes) })
-                        row("Bedtime varied by", result.bedtimeSD.map { Format.value($0, .hoursMinutes) })
-                    }
-                } else if kind == .daylight {
-                    Section("Today") {
-                        row("Target today", Format.value(result.daylightTarget, .minutes))
+                if kind == .daylight {
+                    Section("This day") {
+                        row("Target", Format.value(result.daylightTarget, .minutes))
+                        if result.daylightEstimated {
+                            Text("No Apple Watch daylight for this day, so it's estimated from steps between sunrise and sunset.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
                     }
                 } else if let parts = result.parts[kind] {
-                    Section("Today and your usual") {
+                    Section("This day and your usual") {
                         ForEach(parts, id: \.key) { p in
-                            let info = FeatureCatalog.byKey[p.key]
-                            LabeledContent(info?.title ?? p.key) {
+                            let info = Explain.info(p.key)
+                            LabeledContent(info.title) {
                                 VStack(alignment: .trailing) {
-                                    Text(info.map { Format.value(p.value, $0.format) } ?? "\(p.value)")
-                                    if let u = p.usual, let info {
+                                    Text(Format.value(p.value, info.format))
+                                    if let u = p.usual {
                                         Text("usually \(Format.value(u.median, info.format))")
                                             .font(.footnote).foregroundStyle(.secondary)
                                     }
@@ -51,12 +50,12 @@ struct ScoreDetailView: View {
 
     private var explanation: String {
         switch kind {
-        case .sleep: "How long you slept, when you fell asleep and woke up, and time awake in the night, compared with your last four weeks."
-        case .rhythm: "How regular your wake and bedtimes were this week. Within half an hour of each other is a full stripe."
-        case .movement: "Steps and exercise minutes, where more than usual counts as full, plus walking speed and time spent still."
-        case .daylight: "Minutes outside in daylight, measured by Apple Watch. The target is 30 minutes, lower on short winter days."
-        case .places: "Time away from home and places you went, where more than usual counts as full."
-        case .body: "Resting heart rate, heart rate variability, wrist temperature and breathing rate, compared with your usual."
+        case .sleep: "The night before this day: how long you slept, when you fell asleep and woke up, time awake, and the last three nights together. Sleep shapes the next day more than the day shapes the next night, so a short night shows here the morning after."
+        case .rhythm: "How regular your sleep timing was this week compared with your own usual regularity, where the middle of your sleep sits, and listening late at night. Rhythm changes slowly, so it often moves before the other stripes."
+        case .movement: "This day's steps, exercise minutes and hours with movement, where more than usual counts as full, plus walking speed."
+        case .daylight: "Minutes outside in daylight this day. The target is 30 minutes, lower on short winter days. Daylight also helps the next night's sleep come on time."
+        case .places: "Time away from home and places you went this day, where more than usual counts as full."
+        case .body: "Resting heart rate, heart rate variability, wrist temperature and breathing rate, mostly measured overnight, compared with your usual."
         }
     }
 }

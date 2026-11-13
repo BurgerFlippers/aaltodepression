@@ -40,7 +40,7 @@ nonisolated enum Baseline {
         "steps": 250, "exerciseMin": 3, "walkingSpeed": 0.02, "stillHours": 0.25,
         "awayHours": 0.25, "placesVisited": 0.5,
         "restingHR": 1, "hrv": 2, "wristTemp": 0.05, "respRate": 0.2,
-        "daylightMin": 3, "mindfulMin": 1,
+        "daylightMin": 3, "mindfulMin": 1, "activeHours": 1, "nightListeningMin": 5,
     ]
 
     static func median(_ sorted: [Double]) -> Double {

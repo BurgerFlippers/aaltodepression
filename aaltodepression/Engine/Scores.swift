@@ -7,12 +7,15 @@ nonisolated enum ScoreKind: String, CaseIterable, Sendable, Identifiable {
 
     var weight: Double {
         switch self {
+        // Sleep and rhythm carry most: within-person sleep changes lead next-day affect more than
+        // the reverse (Triantafillou 2019), and regularity predicts outcomes beyond duration
+        // (Windred 2024; Matcham 2024). Body signals have the weakest within-person evidence.
         case .sleep: 0.30
-        case .rhythm: 0.20
+        case .rhythm: 0.25
         case .movement: 0.20
         case .daylight: 0.10
         case .places: 0.10
-        case .body: 0.10
+        case .body: 0.05
         }
     }
 
@@ -49,6 +52,10 @@ nonisolated struct DayResult: Sendable {
     /// Rhythm inputs: standard deviation in hours of wake and bedtime over the last 7 days.
     var wakeSD: Double?
     var bedtimeSD: Double?
+    /// Daylight came from steps in daylight hours, not from Apple Watch.
+    var daylightEstimated = false
+    /// Rhythm parts: name, today's value, usual, points.
+    var rhythmParts: [ScorePart] = []
 }
 
 nonisolated struct Scorer: Sendable {
@@ -74,22 +81,68 @@ nonisolated struct Scorer: Sendable {
             r.scores[kind] = ps.map(\.points).reduce(0, +) / Double(ps.count)
         }
 
+        // Sleep: last night, plus the last three nights together, because short nights add up
+        // (Van Dongen 2003) and a single good night does not undo two short ones.
+        var debt: ScorePart?
+        let nights = table.values(F.sleepHours, from: day - 2, to: day + 1)
+        if nights.count >= 2, let u = Baseline.usual(F.sleepHours, in: table, for: day) {
+            let mean = nights.reduce(0, +) / Double(nights.count)
+            debt = ScorePart(key: Scorer.sleep3Key, value: mean, usual: u, points: Baseline.atLeast(mean, u))
+        }
         record(.sleep, [part(F.sleepHours, oneSided: false), part(F.bedtime, oneSided: false),
-                        part(F.wake, oneSided: false), part(F.awakeMin, oneSided: false)])
+                        part(F.wake, oneSided: false), part(F.awakeMin, oneSided: false), debt])
 
-        // Rhythm: how regular wake and bedtime were over the last 7 days.
+        // Rhythm: compared with the person's own regularity, not a fixed number of hours.
         let week = (day - 6, day + 1)
         r.wakeSD = Self.sd(table.values(F.wake, from: week.0, to: week.1))
         r.bedtimeSD = Self.sd(table.values(F.bedtime, from: week.0, to: week.1))
-        let rhythmParts = [r.wakeSD, r.bedtimeSD].compactMap { $0 }.map { sd in
-            min(100, max(0, (2.0 - sd) / 1.5 * 100))
+        let w = Baseline.window(for: day)
+        func spreadPart(_ key: String, _ sd: Double?) -> ScorePart? {
+            guard let sd else { return nil }
+            let usualSD = Self.sd(table.values(key, from: w.from, to: w.to))
+            let points: Double
+            if let usualSD {
+                // As regular as usual (or more) is full; each extra usual-spread costs 60 points.
+                let allowed = max(usualSD, 0.25) * 1.25
+                points = sd <= allowed ? 100 : max(0, 100 - (sd - allowed) / max(usualSD, 0.25) * 60)
+            } else {
+                points = min(100, max(0, (2.0 - sd) / 1.5 * 100))
+            }
+            return ScorePart(key: key == F.wake ? Scorer.wakeSpreadKey : Scorer.bedSpreadKey, value: sd,
+                             usual: usualSD.map { Usual(median: $0, mad: 0) }, points: points)
         }
-        if !rhythmParts.isEmpty {
-            r.scores[.rhythm] = rhythmParts.reduce(0, +) / Double(rhythmParts.count)
+        // Sleep midpoint over the last three nights against the usual midpoint: a drift later shows here first.
+        var midpoint: ScorePart?
+        let mids = Day.range(day - 2, day + 1).compactMap { d -> Double? in
+            guard let b = table.value(F.bedtime, d), let wk = table.value(F.wake, d) else { return nil }
+            return (b + wk + 6) / 2
+        }
+        let usualMids = Day.range(w.from, w.to).compactMap { d -> Double? in
+            guard let b = table.value(F.bedtime, d), let wk = table.value(F.wake, d) else { return nil }
+            return (b + wk + 6) / 2
+        }
+        if mids.count >= 2, let u = Baseline.usual(usualMids) {
+            let m = mids.reduce(0, +) / Double(mids.count)
+            let uu = Usual(median: u.median, mad: max(u.mad, 0.25))
+            midpoint = ScorePart(key: Scorer.midpointKey, value: m, usual: uu, points: Baseline.closeness(m, uu))
+        }
+        // Listening late at night, before sleep: less than usual is fine.
+        var lateListening: ScorePart?
+        if let x = table.value(F.nightListeningMin, day), let u = Baseline.usual(F.nightListeningMin, in: table, for: day) {
+            lateListening = ScorePart(key: F.nightListeningMin, value: x, usual: u,
+                                      points: x <= u.median ? 100 : Baseline.closeness(x, Usual(median: u.median, mad: max(u.mad, 5))))
+        }
+        let rp = [spreadPart(F.wake, r.wakeSD), spreadPart(F.bedtime, r.bedtimeSD), midpoint, lateListening].compactMap { $0 }
+        if !rp.isEmpty {
+            r.rhythmParts = rp
+            r.parts[.rhythm] = rp
+            r.scores[.rhythm] = rp.map(\.points).reduce(0, +) / Double(rp.count)
         }
 
+        // Hours with movement come from hourly Health steps, which go back years; Core Motion's
+        // still hours only cover the last week, so they never build a usual.
         record(.movement, [part(F.steps, oneSided: true), part(F.exerciseMin, oneSided: true),
-                           part(F.walkingSpeed, oneSided: false), part(F.stillHours, oneSided: false)])
+                           part(F.walkingSpeed, oneSided: false), part(F.activeHours, oneSided: true)])
 
         // Daylight: a fair target that shrinks in a Finnish winter.
         if let len = table.value(F.dayLengthH, day), len < 8 {
@@ -97,6 +150,10 @@ nonisolated struct Scorer: Sendable {
         }
         if let minutes = table.value(F.daylightMin, day) {
             r.scores[.daylight] = min(100, minutes / r.daylightTarget * 100)
+        } else if let minutes = table.value(F.daylightWalkMin, day) {
+            // No Apple Watch daylight: estimate from steps between sunrise and sunset.
+            r.scores[.daylight] = min(100, minutes / r.daylightTarget * 100)
+            r.daylightEstimated = true
         }
 
         if locationEnabled {
@@ -139,6 +196,8 @@ nonisolated struct Scorer: Sendable {
         }
         return counts.max { a, b in a.value == b.value ? a.key > b.key : a.value < b.value }?.key ?? homeTimeZone
     }
+
+    static let sleep3Key = "sleep3", wakeSpreadKey = "wakeSpread", bedSpreadKey = "bedSpread", midpointKey = "midpoint"
 
     static func sd(_ xs: [Double]) -> Double? {
         guard xs.count >= 4 else { return nil }

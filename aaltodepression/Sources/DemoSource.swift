@@ -103,6 +103,11 @@ nonisolated enum DemoSource {
         if cold { daylight = uniform("daylight-cold", n, 6, 12) }
         if trip { daylight = uniform("daylight-trip", n, 40, 60) }
         t.set(F.daylightMin, d, daylight.rounded())
+        var activeH = around("activeh", n, mix(9, 5), mix(1, 1.2))
+        if cold { activeH = around("activeh-cold", n, 4, 0.6) }
+        if trip { activeH = around("activeh-trip", n, 12, 0.8) }
+        t.set(F.activeHours, d, max(1, activeH).rounded())
+        t.set(F.daylightWalkMin, d, max(0, daylight * 0.8 + around("dwalk", n, 0, 4)).rounded())
 
         // Heart and body.
         let rhr = around("rhr", n, mix(58, 60), 1.1) + (cold ? 7 : 0)
