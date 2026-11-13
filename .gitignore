@@ -1,0 +1,5 @@
+# Impeccable: engine binaries and local state are fetched/created at runtime
+.claude/skills/impeccable/scripts/bin/
+.claude/skills/impeccable/scripts/.impeccable/
+.claude/skills/impeccable/scripts/config.json
+build/

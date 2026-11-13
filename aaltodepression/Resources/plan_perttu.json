@@ -1,0 +1,15 @@
+{
+  "patientName": "Perttu",
+  "nurseName": "Laura",
+  "earlySigns": ["Sleep drifts late", "Mornings feel heavy", "Stops answering messages"],
+  "actions": [
+    {"key": "light", "title": "Morning light outside", "seenBy": "daylightMin"},
+    {"key": "walk", "title": "A short walk", "seenBy": "steps"},
+    {"key": "breath", "title": "Slow breathing, 5 minutes", "seenBy": "mindfulMin"},
+    {"key": "call", "title": "See or call someone", "seenBy": null}
+  ],
+  "friendName": "Ville",
+  "friendMessage": "Hei Ville, jos saat tämän, pyytäisitkö minut kävelylle tällä viikolla? Ei tarvitse kysellä mitään. – P",
+  "startDate": "2026-09-30",
+  "months": 12
+}
