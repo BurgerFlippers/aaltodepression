@@ -26,6 +26,7 @@ struct DaysView: View {
                     DayBreakdown(day: s, table: model.table, focus: model.daysFocus,
                                  onPrev: { step(-1) }, onNext: { step(1) },
                                  canPrev: s.day > (days.first?.day ?? s.day), canNext: s.day < (days.last?.day ?? s.day))
+                    StateOfMindCompare(days: days, table: model.table, selected: s.day)
                     SourcesSection(table: model.table, day: s.day, isDemo: model.isDemo)
                 }
             }

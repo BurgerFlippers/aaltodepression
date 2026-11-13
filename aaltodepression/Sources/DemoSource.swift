@@ -176,7 +176,15 @@ nonisolated enum DemoSource {
         // Logged only now and then, like a real person.
         if cold { t.set(F.symptomFatigue, d, 1); t.set(F.symptomHeadache, d, n == 31 ? 1 : 0) }
         if n == 52 { t.set(F.symptomSleepChanges, d, 1) }
-        if [4, 11, 19, 26].contains(n) { t.set(F.stateOfMindValence, d, around("som", n, 0.35, 0.1)); t.set(F.stateOfMindCount, d, 1) }
+        // Perttu logs State of Mind in the Health app on most evenings. Not scored; Days compares it with Steadiness.
+        if chance("som-logged", n, 0.65) {
+            var v = around("som", n, mix(0.32, -0.3), 0.14)
+            if cold { v -= 0.2 }
+            if dip { v -= 0.25 }
+            if trip { v += 0.1 }
+            t.set(F.stateOfMindValence, d, max(-1, min(1, v)))
+            t.set(F.stateOfMindCount, d, 1)
+        }
         if n == 0 { t.set(F.phq9, d, 6); t.set(F.gad7, d, 4) }
         if n == 0 { t.set(F.symptomMoodChanges, d, 0); t.set(F.symptomAppetiteChanges, d, 0) }
 
