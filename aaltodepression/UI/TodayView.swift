@@ -7,6 +7,7 @@ struct TodayView: View {
     @State private var showHelp = false
     /// 0 = today (the latest day); 1 = the day before, and so on.
     @State private var offset = 0
+    @State private var path: [SummaryRoute] = []
 
     private var shown: StepDay? {
         let h = model.history
@@ -22,20 +23,21 @@ struct TodayView: View {
 
     var body: some View {
         @Bindable var model = model
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     if let c = shown {
                         if offset > 0 {
                             PastLine(day: c)
                         } else if ActionCard.needsCard(c, model) {
-                            ActionCard(day: c)
+                            ActionRow(day: c)
                         } else {
                             StatusLine(day: c)
                         }
                         VStack(alignment: .leading, spacing: 14) {
                             if let s = c.result.steadiness {
                                 if model.showsSteadiness {
+                                    Button { path.append(.steadiness) } label: {
                                     VStack(alignment: .leading, spacing: 4) {
                                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                                             Text("\(Int(s.rounded()))")
@@ -46,8 +48,12 @@ struct TodayView: View {
                                         }
                                         Text(SteadinessBand(s).words).font(.title2.weight(.semibold))
                                     }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
                                     .accessibilityElement(children: .combine)
-                                    .accessibilityAddTraits(.isHeader)
+                                    .accessibilityHint("Shows Steadiness over time")
                                 } else {
                                     Text(SteadinessBand(s).words)
                                         .font(.title2.weight(.semibold))
@@ -55,10 +61,10 @@ struct TodayView: View {
                                 }
                             }
                             StripesView(result: c.result, locationEnabled: model.locationEnabled) { kind in
-                                model.openDays(c.day, focus: kind)
+                                path.append(.score(kind))
                             }
                             Button {
-                                model.openDays(c.day)
+                                path.append(.steadiness)
                             } label: {
                                 Label("Why these numbers", systemImage: "chevron.right")
                                     .labelStyle(TrailingIconLabelStyle())
@@ -73,6 +79,12 @@ struct TodayView: View {
                         .buttonStyle(.bordered)
                         .controlSize(.large)
                         .accessibilityHint("Shows numbers you can call right away")
+                        Button { path.append(.allSignals) } label: {
+                            Label("Show all signals", systemImage: "list.bullet")
+                                .frame(minHeight: 44)
+                        }
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
                         Button { model.showSettings = true } label: {
                             Label(model.isDemo ? "Settings and demo" : "Settings", systemImage: "gearshape")
                                 .frame(minHeight: 44)
@@ -90,6 +102,14 @@ struct TodayView: View {
             .contentMargins(.bottom, 96, for: .scrollContent)   // clears the floating tab bar
             .contentMargins(.top, 16, for: .scrollContent)
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: SummaryRoute.self) { route in
+                let day = shown?.day ?? model.scoredDay
+                switch route {
+                case .steadiness: SteadinessDetailView(selected: day)
+                case .score(let k): ScoreDetailView(kind: k, selected: day)
+                case .allSignals: AllSignalsView()
+                }
+            }
             .onChange(of: model.scoredDay) { offset = 0 }
             .gesture(DragGesture(minimumDistance: 40).onEnded { v in
                 guard abs(v.translation.width) > abs(v.translation.height) * 2 else { return }
@@ -161,6 +181,49 @@ struct TrailingIconLabelStyle: LabelStyle {
 }
 
 // MARK: - What to do today
+
+/// A single low row when something needs doing. The doing happens in Plan, on the active rung.
+struct ActionRow: View {
+    @Environment(AppModel.self) private var model
+    let day: StepDay
+
+    var body: some View {
+        Button { model.tab = .plan } label: {
+            HStack(spacing: 12) {
+                Image(systemName: day.step == .reachOut ? "person.2.fill" : "sparkle")
+                    .foregroundStyle(Palette.tint)
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.body.weight(.semibold)).foregroundStyle(.primary)
+                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                }
+                .multilineTextAlignment(.leading)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(Palette.tint.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens your plan")
+    }
+
+    private var title: String {
+        if day.step == .reachOut {
+            return model.messageCancelled ? "Not sending to \(model.plan.friendName) this time" : "Your message to \(model.plan.friendName) goes out tomorrow"
+        }
+        return model.suggestion.map { "\($0.action.title)?" } ?? "One small thing for today"
+    }
+
+    private var subtitle: String {
+        if day.step == .reachOut { return "\(model.plan.nurseName) will call you this week" }
+        if let s = model.suggestion, let r = model.records[s.action.key], r.tried > 0 {
+            return "Helped \(r.helped) of \(r.tried) \(r.tried == 1 ? "time" : "times") before"
+        }
+        return "From your plan with \(model.plan.nurseName)"
+    }
+}
 
 /// One quiet line when there's nothing to do: steady, done, or a day that isn't counted.
 struct StatusLine: View {
@@ -389,7 +452,7 @@ struct StripeRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(kind.title)
         .accessibilityValue(score.map { s in "\(Int(s.rounded())) of 100, " + (s >= 95 ? "at your usual" : "below your usual") } ?? "No data for this day")
-        .accessibilityHint("Shows this score in Days")
+        .accessibilityHint("Shows this score over time")
         .accessibilityAddTraits(.isButton)
     }
 }

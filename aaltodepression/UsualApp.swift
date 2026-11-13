@@ -52,7 +52,6 @@ struct RootView: View {
                 TabView(selection: $model.tab) {
                     TodayView().tabItem { Label("Today", systemImage: "sun.horizon") }.tag(AppModel.Tab.today)
                     PlanView().tabItem { Label("Plan", systemImage: "list.bullet.indent") }.tag(AppModel.Tab.plan)
-                    DaysView().tabItem { Label("Days", systemImage: "calendar") }.tag(AppModel.Tab.days)
                 }
             } else {
                 OnboardingView()

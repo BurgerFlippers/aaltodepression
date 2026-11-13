@@ -1,50 +1,5 @@
 import SwiftUI
 
-/// Days: pick a day on the rhythm chart, then see what moved its Steadiness.
-struct DaysView: View {
-    @Environment(AppModel.self) private var model
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var days: [StepDay] { model.history }
-    private var selected: StepDay? {
-        let d = model.daysDay ?? model.scoredDay
-        return days.last { $0.day == d } ?? days.last
-    }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    Actogram(days: days, table: model.table, selected: selected?.day,
-                             firstNudge: days.first { $0.step == .nudge }?.day) { day in
-                        model.daysDay = day
-                        model.daysFocus = nil
-                    }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
-                }
-                if let s = selected {
-                    DayBreakdown(day: s, table: model.table, focus: model.daysFocus,
-                                 onPrev: { step(-1) }, onNext: { step(1) },
-                                 canPrev: s.day > (days.first?.day ?? s.day), canNext: s.day < (days.last?.day ?? s.day))
-                    StateOfMindCompare(days: days, table: model.table, selected: s.day)
-                    SourcesSection(table: model.table, day: s.day, isDemo: model.isDemo)
-                }
-            }
-            .contentMargins(.bottom, 80, for: .scrollContent)
-            .navigationTitle("Days")
-            .refreshable { if !model.isDemo { await model.readEverything() } }
-        }
-    }
-
-    private func step(_ delta: Int) {
-        guard let s = selected else { return }
-        let target = s.day + delta
-        guard days.contains(where: { $0.day == target }) else { return }
-        model.daysFocus = nil
-        withAnimation(reduceMotion ? nil : .snappy) { model.daysDay = target }
-    }
-}
-
 // MARK: - The rhythm chart (actogram)
 
 /// One row per day, newest at the bottom, 18:00 to 18:00 so the night sits in the middle.
@@ -215,6 +170,10 @@ struct DayBreakdown: View {
     var onNext: () -> Void
     var canPrev: Bool
     var canNext: Bool
+    /// Show only this score's signals, flat, without the day header or extra sections.
+    var only: ScoreKind? = nil
+    /// The date, chevrons and Steadiness above the scores. Off when the page already shows them.
+    var showDayHeader = true
     @State private var expanded: Set<ScoreKind> = []
     @State private var showUnscored = false
 
@@ -223,6 +182,29 @@ struct DayBreakdown: View {
                                                   F.heartRateMax, F.bodyMass, F.basalEnergy, Scorer.midpointKey]
 
     var body: some View {
+        if let only { single(only) } else { full }
+    }
+
+    @ViewBuilder private func single(_ kind: ScoreKind) -> some View {
+        let r = day.result
+        Section {
+            if r.parts[kind] == nil {
+                Text("No data for this day.").foregroundStyle(.secondary)
+            }
+            ForEach(rows(kind), id: \.key) { p in partRow(p, all: rows(kind)) }
+        } header: {
+            HStack {
+                Text(Format.date(day.day))
+                Spacer()
+                if let e = Effects.onSteadiness(kind, r) { Text(effectText(e, aboveUsual: false)).textCase(nil) }
+            }
+        }
+        if kind == .body, r.likelyIll {
+            Section("Context this day") { Text(illReason).fixedSize(horizontal: false, vertical: true) }
+        }
+    }
+
+    @ViewBuilder private var full: some View {
         let r = day.result
         let kinds = Effects.sortedKinds(r)
         Section {
@@ -235,7 +217,7 @@ struct DayBreakdown: View {
                 }
             }
         } header: {
-            header
+            if showDayHeader { header } else { Text("What moved this day") }
         }
         .onAppear { resetExpanded(kinds) }
         .onChange(of: day.day) { resetExpanded(Effects.sortedKinds(day.result)) }

@@ -16,6 +16,7 @@ struct PlanView: View {
         let plan = model.plan
         let records = model.planRecords
         NavigationStack {
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Rung(number: 1, active: activeRung == 1, last: false,
@@ -25,6 +26,12 @@ struct PlanView: View {
                     Rung(number: 2, active: activeRung == 2, last: false,
                          title: "When my rhythm starts to drift") {
                         VStack(alignment: .leading, spacing: 12) {
+                            if activeRung == 2, let s = model.suggestion {
+                                VStack(alignment: .leading, spacing: 8) { NudgeContent(suggestion: s) }
+                                    .padding(14)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Palette.tint.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            }
                             Text("I do one of these:").foregroundStyle(.secondary)
                             ForEach(plan.actions) { a in
                                 VStack(alignment: .leading, spacing: 2) {
@@ -37,10 +44,17 @@ struct PlanView: View {
                     }
                     Rung(number: 3, active: activeRung == 3, last: false,
                          title: "If it doesn't settle in about 10 days") {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("\(plan.friendName) gets my message").font(.body.weight(.medium))
-                            QuoteBlock(text: plan.friendMessage)
-                            Text("\(plan.nurseName) calls me").font(.body.weight(.medium))
+                        if activeRung == 3 {
+                            VStack(alignment: .leading, spacing: 10) { ReachOutContent() }
+                                .padding(14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Palette.tint.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        } else {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("\(plan.friendName) gets my message").font(.body.weight(.medium))
+                                QuoteBlock(text: plan.friendMessage)
+                                Text("\(plan.nurseName) calls me").font(.body.weight(.medium))
+                            }
                         }
                     }
                     Rung(number: 4, active: false, last: true, title: "If that's not enough") {
@@ -61,6 +75,11 @@ struct PlanView: View {
                 .padding(.horizontal, 20)
             }
             .contentMargins(.bottom, 96, for: .scrollContent)
+            .onAppear { if activeRung > 1 { proxy.scrollTo(activeRung, anchor: .top) } }
+            .onChange(of: model.tab) { _, t in
+                if t == .plan, activeRung > 1 { withAnimation { proxy.scrollTo(activeRung, anchor: .top) } }
+            }
+            }
             .navigationTitle("Plan")
         }
     }
@@ -121,7 +140,8 @@ struct Rung<Content: View>: View {
             }
             .padding(.bottom, last ? 0 : 26)
         }
-        .accessibilityElement(children: .combine)
+        .id(number)
+        .accessibilityElement(children: active ? .contain : .combine)
         .accessibilityLabel("Rung \(number) of 4. \(title).\(active ? " You are here." : "")")
     }
 }
