@@ -215,6 +215,7 @@ struct DayBreakdown: View {
     var canPrev: Bool
     var canNext: Bool
     @State private var expanded: Set<ScoreKind> = []
+    @State private var showUnscored = false
 
     private static let oneSided: Set<String> = [F.steps, F.exerciseMin, F.activeHours, F.awayHours, F.placesVisited, Scorer.sleep3Key]
 
@@ -246,14 +247,21 @@ struct DayBreakdown: View {
         }
 
         Section {
-            ForEach(unscored, id: \.key) { info in
-                LabeledContent(info.title) {
-                    VStack(alignment: .trailing) {
-                        Text(value(info))
-                        if let u = Baseline.usual(info.key, in: table, for: day.day) {
-                            Text("usual \(Format.value(u.median, info.format))").font(.footnote).foregroundStyle(.secondary)
+            DisclosureGroup(isExpanded: $showUnscored) {
+                ForEach(unscored, id: \.key) { info in
+                    LabeledContent(info.title) {
+                        VStack(alignment: .trailing) {
+                            Text(value(info))
+                            if let u = Baseline.usual(info.key, in: table, for: day.day) {
+                                Text("usual \(Format.value(u.median, info.format))").font(.footnote).foregroundStyle(.secondary)
+                            }
                         }
                     }
+                }
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(unscored.count) more signals")
+                    Text("Read and kept on this phone, not part of Steadiness").font(.footnote).foregroundStyle(.secondary)
                 }
             }
         } header: {

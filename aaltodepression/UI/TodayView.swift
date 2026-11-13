@@ -15,18 +15,24 @@ struct TodayView: View {
                         ActionCard(day: c)
                         VStack(alignment: .leading, spacing: 14) {
                             if let s = c.result.steadiness {
-                                HStack(alignment: .firstTextBaseline) {
+                                if model.showsSteadiness {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                            Text("\(Int(s.rounded()))")
+                                                .font(.system(size: 76, weight: .semibold, design: .rounded))
+                                                .monospacedDigit()
+                                                .contentTransition(.numericText())
+                                            Text("Steadiness").font(.title3).foregroundStyle(.secondary)
+                                        }
+                                        Text(SteadinessBand(s).words).font(.title2.weight(.semibold))
+                                    }
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityAddTraits(.isHeader)
+                                } else {
                                     Text(SteadinessBand(s).words)
                                         .font(.title2.weight(.semibold))
-                                    Spacer()
-                                    if model.showsSteadiness {
-                                        Text("Steadiness \(Int(s.rounded()))")
-                                            .font(.subheadline.weight(.semibold)).monospacedDigit()
-                                            .foregroundStyle(.secondary)
-                                    }
+                                        .accessibilityAddTraits(.isHeader)
                                 }
-                                .accessibilityElement(children: .combine)
-                                .accessibilityAddTraits(.isHeader)
                             }
                             StripesView(result: c.result, locationEnabled: model.locationEnabled) { kind in
                                 model.openDays(c.day, focus: kind)
