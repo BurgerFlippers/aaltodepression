@@ -4,6 +4,7 @@ import Charts
 /// Day score over the last four weeks, with the person's usual as a quiet band behind it.
 struct HistoryChart: View {
     let days: [StepDay]
+    var selected: Day? = nil
 
     private struct Point: Identifiable {
         let date: Date
@@ -25,7 +26,7 @@ struct HistoryChart: View {
     var body: some View {
         let pts = points
         VStack(alignment: .leading, spacing: 10) {
-            Text("Last 4 weeks").font(.headline)
+            Text("4 weeks to this day").font(.headline)
             Chart {
                 ForEach(pts) { p in
                     if let u = p.usual {
@@ -45,6 +46,8 @@ struct HistoryChart: View {
                     }
                 }
                 if let last = pts.last, let s = last.score {
+                    RuleMark(x: .value("Day", last.date, unit: .day))
+                        .foregroundStyle(Palette.tint.opacity(0.25))
                     PointMark(x: .value("Day", last.date, unit: .day), y: .value("Day score", s))
                         .foregroundStyle(Palette.tint)
                         .symbolSize(60)

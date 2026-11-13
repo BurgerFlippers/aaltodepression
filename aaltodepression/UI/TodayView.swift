@@ -4,16 +4,36 @@ struct TodayView: View {
     @Environment(AppModel.self) private var model
     @State private var detail: ScoreKind?
     @State private var showHelp = false
+    /// 0 = the latest day; 1 = the day before, and so on.
+    @State private var offset = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var shown: StepDay? {
+        let h = model.history
+        let i = h.count - 1 - offset
+        return h.indices.contains(i) ? h[i] : nil
+    }
+    private var maxOffset: Int { max(0, model.history.count - 1) }
+
+    private func move(_ delta: Int) {
+        let next = min(maxOffset, max(0, offset + delta))
+        guard next != offset else { return }
+        withAnimation(reduceMotion ? nil : .snappy) { offset = next }
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     header
-                    if let c = model.current {
+                    if let c = shown {
                         StripesView(result: c.result, locationEnabled: model.locationEnabled) { detail = $0 }
-                        StateSection(day: c)
-                        HistoryChart(days: model.history)
+                            .gesture(DragGesture(minimumDistance: 30).onEnded { v in
+                                guard abs(v.translation.width) > abs(v.translation.height) else { return }
+                                move(v.translation.width > 0 ? 1 : -1)
+                            })
+                        if offset == 0 { StateSection(day: c) } else { PastStateLine(day: c) }
+                        HistoryChart(days: model.history, selected: c.day)
                     } else {
                         ContentUnavailableView("No days to show yet", systemImage: "sun.horizon",
                                                description: Text("Usual needs a week of Health data before it can compare a day with your usual."))
@@ -22,7 +42,8 @@ struct TodayView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 32)
             }
-            .navigationTitle(model.isDemo ? "Today" : "Yesterday")
+            .navigationTitle(offset > 0 ? "Earlier" : (model.isDemo ? "Today" : "Yesterday"))
+            .onChange(of: model.scoredDay) { offset = 0 }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showHelp = true } label: { HStack(spacing: 6) { Image(systemName: "phone.fill"); Text("Help") } }
@@ -30,7 +51,7 @@ struct TodayView: View {
                 }
             }
             .sheet(item: $detail) { kind in
-                if let c = model.current { ScoreDetailView(kind: kind, result: c.result) }
+                if let c = shown { ScoreDetailView(kind: kind, result: c.result) }
             }
             .sheet(isPresented: $showHelp) { HelpView() }
             .refreshable { if !model.isDemo { await model.readEverything() } }
@@ -38,16 +59,65 @@ struct TodayView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(Format.date(model.scoredDay))
-                .font(.title3.weight(.semibold))
-            if model.isDemo {
-                Text("Demo with Perttu, day \(model.demoDay)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+        let day = shown?.day ?? model.scoredDay
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 4) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(Format.date(day))
+                        .font(.title3.weight(.semibold))
+                        .contentTransition(.numericText())
+                    if model.isDemo {
+                        Text("Demo with Perttu, day \(DemoSource.number(of: day))")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                Spacer()
+                Button { move(1) } label: {
+                    Image(systemName: "chevron.left").frame(width: 44, height: 44)
+                }
+                .disabled(offset >= maxOffset)
+                .accessibilityLabel("Previous day")
+                Button { move(-1) } label: {
+                    Image(systemName: "chevron.right").frame(width: 44, height: 44)
+                }
+                .disabled(offset == 0)
+                .accessibilityLabel("Next day")
+            }
+            .font(.title3.weight(.semibold))
+            if offset > 0 {
+                Button("Back to \(model.isDemo ? "today" : "yesterday")") { move(-offset) }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minHeight: 44)
             }
         }
-        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A short look back: what the app showed on an earlier day.
+struct PastStateLine: View {
+    @Environment(AppModel.self) private var model
+    let day: StepDay
+
+    var body: some View {
+        CalmLine(text: text)
+    }
+
+    private var text: String {
+        let r = day.result
+        switch day.step {
+        case .reachOut:
+            return "On this day your message to \(model.plan.friendName) was set to go out, and \(model.plan.nurseName) was going to call."
+        case .nudge:
+            let a = ActionPicker.pick(plan: model.plan, table: model.table, day: day.since ?? day.day)
+            return "On this day the small thing was: \(a?.action.title.lowercased() ?? "one action from your plan")."
+        case .steady:
+            if r.likelyIll { return "Heart rate and wrist temperature were up, like during a cold. Left out of the comparison." }
+            if r.travelling { return "You were away from home. Left out of the comparison." }
+            if let s = r.dayScore, let b = day.baselineDay, s < b - 10 { return "A quieter day than usual." }
+            return "Close to your usual."
+        }
     }
 }
 

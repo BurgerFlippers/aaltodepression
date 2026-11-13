@@ -53,6 +53,19 @@ nonisolated struct HealthKitSource: Sendable {
             .init(key: F.caffeine, id: .dietaryCaffeine, options: .cumulativeSum, unit: .gramUnit(with: .milli)),
             .init(key: F.alcohol, id: .numberOfAlcoholicBeverages, options: .cumulativeSum, unit: .count()),
         ]
+        s += [
+            .init(key: F.height, id: .height, options: .discreteAverage, unit: .meterUnit(with: .centi)),
+            .init(key: F.bodyMass, id: .bodyMass, options: .discreteAverage, unit: .gramUnit(with: .kilo)),
+            .init(key: F.basalEnergy, id: .basalEnergyBurned, options: .cumulativeSum, unit: .kilocalorie()),
+            .init(key: F.cyclingDistance, id: .distanceCycling, options: .cumulativeSum, unit: .meterUnit(with: .kilo)),
+            .init(key: F.uvExposure, id: .uvExposure, options: .discreteAverage, unit: .count()),
+            .init(key: F.water, id: .dietaryWater, options: .cumulativeSum, unit: .liter()),
+            .init(key: F.soundReduction, id: .environmentalSoundReduction, options: .discreteAverage, unit: .decibelAWeightedSoundPressureLevel()),
+            .init(key: F.falls, id: .numberOfTimesFallen, options: .cumulativeSum, unit: .count()),
+        ]
+        if #available(iOS 18.0, *) {
+            s.append(.init(key: F.workoutEffort, id: .workoutEffortScore, options: .discreteAverage, unit: .appleEffortScore()))
+        }
         if #available(iOS 18.0, *) {
             s.append(.init(key: F.breathingDisturbances, id: .appleSleepingBreathingDisturbances, options: .discreteAverage, unit: .count()))
         }
@@ -74,13 +87,18 @@ nonisolated struct HealthKitSource: Sendable {
         (F.symptomAppetiteChanges, .appetiteChanges, [HKCategoryValueAppetiteChanges.decreased.rawValue,
                                                       HKCategoryValueAppetiteChanges.increased.rawValue]),
         (F.handwashing, .handwashingEvent, nil),
+        (F.standHours, .appleStandHour, [HKCategoryValueAppleStandHour.stood.rawValue]),
+        (F.lowFitnessEvents, .lowCardioFitnessEvent, nil),
         (F.toothbrushing, .toothbrushingEvent, nil),
     ]
 
     static var readTypes: Set<HKObjectType> {
         var types = Set<HKObjectType>(quantitySpecs.map { HKQuantityType($0.id) })
         for c in countedCategories { types.insert(HKCategoryType(c.id)) }
+        if #available(iOS 18.0, *) { types.insert(HKCategoryType(.sleepApneaEvent)) }
         types.insert(HKCategoryType(.sleepAnalysis))
+        types.insert(HKCharacteristicType(.dateOfBirth))
+        types.insert(HKCharacteristicType(.biologicalSex))
         types.insert(HKCategoryType(.mindfulSession))
         types.insert(HKObjectType.workoutType())
         if #available(iOS 18.0, *) {
@@ -88,16 +106,27 @@ nonisolated struct HealthKitSource: Sendable {
             types.insert(HKScoredAssessmentType(.PHQ9))
             types.insert(HKScoredAssessmentType(.GAD7))
         }
-        if #available(iOS 26.0, *) {
-            types.insert(HKObjectType.medicationDoseEventType())
-        }
+        // Medication dose events are not allowed in this request (HealthKit throws). Medications
+        // use their own per-medication permission, asked from Settings with requestMedicationAccess().
         return types
     }
 
     let store = HKHealthStore()
 
     func requestAuthorization() async throws {
-        try await store.requestAuthorization(toShare: [], read: Self.readTypes)
+        // Ask only for types this device and OS allow, so one unsupported type never crashes the request.
+        let allowed = Self.readTypes.filter { !Self.disallowed.contains($0.identifier) }
+        try await store.requestAuthorization(toShare: [], read: allowed)
+    }
+
+    /// Types HealthKit refuses in a plain read request on some systems.
+    static let disallowed: Set<String> = ["HKMedicationDoseEventTypeIdentifierMedicationDoseEvent"]
+
+    /// Medications have their own sheet, one medication at a time. Shown from a tap in Settings.
+    func requestMedicationAccess() async {
+        if #available(iOS 26.0, *) {
+            try? await store.requestPerObjectReadAuthorization(for: HKObjectType.userAnnotatedMedicationType(), predicate: nil)
+        }
     }
 
     /// Reads everything concurrently. Returns the table plus how many days each feature returned.
@@ -116,6 +145,7 @@ nonisolated struct HealthKitSource: Sendable {
             group.addTask { (try? await workouts(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             group.addTask { (try? await nightListening(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             if #available(iOS 18.0, *) {
+                group.addTask { (try? await categoryCount(F.breathingEvents, .sleepApneaEvent, present: nil, from: start, to: end, calendar: calendar)) ?? FeatureTable() }
                 group.addTask { (try? await stateOfMind(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
                 group.addTask { (try? await assessments(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             }
@@ -124,11 +154,31 @@ nonisolated struct HealthKitSource: Sendable {
             }
             var all = FeatureTable()
             for await t in group { all.merge(t) }
+            all.merge(personalDetails(calendar: calendar))
             return all
         }
     }
 
     // MARK: - Readers
+
+    /// Age and biological sex, as Saunasense reads them. Stored on today's date.
+    private func personalDetails(calendar: Calendar) -> FeatureTable {
+        var t = FeatureTable()
+        let today = Day(Date(), calendar: calendar)
+        if let dob = try? store.dateOfBirthComponents(), let birth = calendar.date(from: dob),
+           let years = calendar.dateComponents([.year], from: birth, to: Date()).year {
+            t.set(F.age, today, Double(years))
+        }
+        if let sex = try? store.biologicalSex().biologicalSex {
+            switch sex {
+            case .female: t.setText(F.sex, today, "Female")
+            case .male: t.setText(F.sex, today, "Male")
+            case .other: t.setText(F.sex, today, "Other")
+            default: break
+            }
+        }
+        return t
+    }
 
     private func quantity(_ spec: QuantitySpec, from: Date, to: Date, calendar: Calendar) async throws -> FeatureTable {
         let predicate = HKSamplePredicate.quantitySample(type: HKQuantityType(spec.id),

@@ -35,7 +35,8 @@ struct SettingsView: View {
                         if let d = model.lastRead {
                             LabeledContent("Last read", value: d.formatted(date: .omitted, time: .shortened))
                         }
-                        Button("Allow Health, Motion and Location") { Task { await model.requestPermissions(); await model.readEverything() } }
+                        Button("Allow Health, Motion, Location, Calendar and Photos") { Task { await model.requestPermissions(); await model.readEverything() } }
+                        Button("Share medications from Health") { Task { await model.requestMedicationAccess() } }
                     }
                 }
                 Section {

@@ -66,6 +66,13 @@ final class LocationSource: NSObject, CLLocationManagerDelegate {
         onChange?()
     }
 
+    /// The most frequent overnight place, if known.
+    var home: CLLocation? {
+        guard let i = log.places.indices.max(by: { log.places[$0].overnights < log.places[$1].overnights }),
+              log.places[i].overnights > 0 else { return nil }
+        return CLLocation(latitude: log.places[i].lat, longitude: log.places[i].lon)
+    }
+
     /// Daily numbers from the stays. Days without any stay stay unknown.
     func table(calendar: Calendar = .current) -> FeatureTable {
         var t = FeatureTable()

@@ -82,6 +82,8 @@ final class AppModel {
         var t = FeatureTable()
         if HealthKitSource.isAvailable { t.merge(await HealthKitSource().read()) }
         t.merge(await MotionSource.read())
+        t.merge(CalendarSource.read())
+        t.merge(PhotosSource.read(home: location.home))
         let loc = location.approximateLocation?.coordinate
         let days = Day.range(Day(Date()) - 365, Day(Date()) + 1)
         t.merge(SolarSource.table(days: days, latitude: loc?.latitude ?? DemoSource.latitude, longitude: loc?.longitude ?? DemoSource.longitude))
@@ -96,7 +98,14 @@ final class AppModel {
         if HealthKitSource.isAvailable { try? await HealthKitSource().requestAuthorization() }
         _ = await MotionSource.read()              // first query shows the Motion prompt
         location.requestPermission()
+        await CalendarSource.requestAccess()
+        await PhotosSource.requestAccess()
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+    }
+
+    func requestMedicationAccess() async {
+        await HealthKitSource().requestMedicationAccess()
+        await readEverything()
     }
 
     // MARK: - Friend message (step 2)

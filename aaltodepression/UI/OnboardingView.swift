@@ -39,6 +39,7 @@ struct OnboardingView: View {
                 row("Sleep, movement, heart and daylight from Apple Health", "heart.text.square")
                 row("Whether you were still, walking or travelling", "figure.walk")
                 row("Time at home and places visited, as numbers only", "house")
+                row("How many calendar events and photos a day, never their content", "calendar")
             }
             .font(.body)
             Text("Everything is worked out on this phone.")

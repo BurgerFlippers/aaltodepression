@@ -79,6 +79,11 @@ nonisolated enum F {
     static let stateOfMindValence = "stateOfMindValence", stateOfMindCount = "stateOfMindCount"
     static let phq9 = "phq9", gad7 = "gad7"
     static let medsLogged = "medsLogged", medsSkipped = "medsSkipped"
+    static let height = "height", age = "age", sex = "sex"
+    static let bodyMass = "bodyMass", basalEnergy = "basalEnergy", cyclingDistance = "cyclingDistance"
+    static let uvExposure = "uvExposure", water = "water", soundReduction = "soundReduction", falls = "falls"
+    static let workoutEffort = "workoutEffort", standHours = "standHours", lowFitnessEvents = "lowFitnessEvents"
+    static let breathingEvents = "breathingEvents"
     // Motion
     static let stillHours = "stillHours", walkingHours = "walkingHours", runningHours = "runningHours"
     static let automotiveHours = "automotiveHours", cyclingHours = "cyclingHours"
@@ -170,6 +175,20 @@ nonisolated enum FeatureCatalog {
         h(F.gad7, "GAD-7 questionnaire", .manual, .p1, .integer(""), "Read only, never asked. iOS 18 and later"),
         h(F.medsLogged, "Medication doses taken", .manual, .p1, .integer(""), "iOS 26 and later"),
         h(F.medsSkipped, "Medication doses skipped", .manual, .p1, .integer(""), "iOS 26 and later"),
+        h(F.age, "Age", .manual, .p1, .integer("years")),
+        h(F.sex, "Biological sex", .manual, .p1, .text),
+        h(F.height, "Height", .manual, .p1, .integer("cm")),
+        h(F.bodyMass, "Weight", .manual, .p1, .decimal(1, "kg")),
+        h(F.basalEnergy, "Resting energy", .watch, .p1, .integer("kcal")),
+        h(F.cyclingDistance, "Cycling distance", .watch, .p1, .decimal(1, "km")),
+        h(F.uvExposure, "UV exposure", .watch, .p1, .decimal(1, "")),
+        h(F.water, "Water", .manual, .p2, .decimal(1, "l")),
+        h(F.soundReduction, "Noise reduced by AirPods", .iPhone, .p1, .integer("dB")),
+        h(F.falls, "Falls", .watch, .p1, .integer("")),
+        h(F.workoutEffort, "Workout effort", .watch, .p1, .decimal(1, ""), "iOS 18 and later"),
+        h(F.standHours, "Stand hours", .watch, .p1, .integer("h")),
+        h(F.lowFitnessEvents, "Low cardio fitness notifications", .watch, .p1, .integer("")),
+        h(F.breathingEvents, "Breathing disturbance notifications", .watch, .p1, .integer(""), "iOS 18 and later"),
         h(F.caffeine, "Caffeine", .manual, .p2, .integer("mg")),
         h(F.alcohol, "Alcoholic drinks", .manual, .p2, .integer("")),
         // Motion

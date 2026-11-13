@@ -141,6 +141,18 @@ nonisolated enum DemoSource {
         t.set(F.toothbrushing, d, n >= 45 && chance("brush", n, 0.4) ? 1 : 2)
         t.set(F.caffeine, d, max(0, around("caffeine", n, mix(190, 260), 40)).rounded())
         if chance("alcohol", n, 0.12) { t.set(F.alcohol, d, 1) }
+        t.set(F.bodyMass, d, around("mass", n, 78.4, 0.3))
+        if n == 0 { t.set(F.height, d, 181); t.set(F.age, d, 38); t.setText(F.sex, d, "Male") }
+        t.set(F.basalEnergy, d, around("basal", n, 1720, 25).rounded())
+        t.set(F.cyclingDistance, d, n < 45 && chance("cycle", n, 0.3) ? around("cyckm", n, 6, 1.5) : 0)
+        t.set(F.uvExposure, d, max(0, around("uv", n, 1.2, 0.4)))
+        t.set(F.water, d, max(0.3, around("water", n, mix(1.6, 1.1), 0.3)))
+        t.set(F.soundReduction, d, around("anc", n, 18, 4).rounded())
+        t.set(F.falls, d, 0)
+        if workouts > 0 { t.set(F.workoutEffort, d, around("effortscore", n, 5.5, 1)) }
+        t.set(F.standHours, d, max(3, around("standh", n, mix(11, 7), 1.2)).rounded())
+        t.set(F.lowFitnessEvents, d, 0)
+        t.set(F.breathingEvents, d, 0)
         t.set(F.medsLogged, d, 1)
         t.set(F.medsSkipped, d, n >= 45 && chance("skip", n, 0.35) ? 1 : 0)
         // Logged only now and then, like a real person.
