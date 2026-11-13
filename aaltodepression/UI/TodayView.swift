@@ -12,7 +12,11 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     header
                     if let c = model.current {
-                        ActionCard(day: c)
+                        if ActionCard.needsCard(c, model) {
+                            ActionCard(day: c)
+                        } else {
+                            StatusLine(day: c)
+                        }
                         VStack(alignment: .leading, spacing: 14) {
                             if let s = c.result.steadiness {
                                 if model.showsSteadiness {
@@ -91,9 +95,56 @@ struct TrailingIconLabelStyle: LabelStyle {
 
 // MARK: - What to do today
 
+/// One quiet line when there's nothing to do: steady, done, or a day that isn't counted.
+struct StatusLine: View {
+    @Environment(AppModel.self) private var model
+    let day: StepDay
+
+    var body: some View {
+        Label {
+            Text(text).fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: icon).foregroundStyle(Palette.tint)
+        }
+        .font(.body)
+        .foregroundStyle(.secondary)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var done: (CarePlan.Action, Double)? {
+        guard day.step == .nudge, let s = model.suggestion, let v = model.doneToday(s.action) else { return nil }
+        return (s.action, v)
+    }
+
+    private var icon: String {
+        if done != nil { return "checkmark.circle.fill" }
+        if day.result.likelyIll { return "thermometer.medium" }
+        if day.result.travelling { return "airplane" }
+        return "checkmark.circle"
+    }
+
+    private var text: String {
+        if let (a, v) = done { return "Done today: \(NudgeContent.noticedText(a, v)). Nothing else needed." }
+        if day.result.likelyIll { return "Looks like a cold. Usual is not counting today against you." }
+        if day.result.travelling { return "You're travelling. Usual is not counting today against you." }
+        return "Nothing needed today. Your days look like your usual."
+    }
+}
+
 struct ActionCard: View {
     @Environment(AppModel.self) private var model
     let day: StepDay
+
+    /// A card only when there is something to do: an action not yet done, or the step-2 message.
+    @MainActor static func needsCard(_ day: StepDay, _ model: AppModel) -> Bool {
+        switch day.step {
+        case .reachOut: return true
+        case .nudge:
+            guard let s = model.suggestion else { return false }
+            return model.doneToday(s.action) == nil
+        case .steady: return false
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -161,8 +212,10 @@ struct NudgeContent: View {
         return info.device == .watch ? "Your watch will notice it" : "Your iPhone will notice it"
     }
 
-    private func noticed(_ v: Double) -> String {
-        switch suggestion.action.seenBy {
+    private func noticed(_ v: Double) -> String { Self.noticedText(suggestion.action, v) }
+
+    static func noticedText(_ a: CarePlan.Action, _ v: Double) -> String {
+        switch a.seenBy {
         case F.mindfulMin?: "\(Int(v.rounded())) min of breathing"
         case F.daylightMin?: "\(Int(v.rounded())) min of daylight"
         case F.steps?: "\(Format.value(v, .integer("steps")))"
