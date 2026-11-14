@@ -72,6 +72,25 @@ Using passive sensing to trigger an early TMS booster is the hypothesis this pro
 
 ## Build
 
+### Xcode quick start
+
+1. Open `aaltodepression.xcodeproj` in Xcode (this checkout was verified with Xcode 27.2).
+2. Select the shared **aaltodepression** scheme and an **iPhone simulator** as the run destination.
+3. Press **⌘R**. The app starts in demo mode on a fresh install; no Apple account or backend is needed for the simulator.
+4. For a physical iPhone, add your Apple account in **Xcode → Settings → Accounts**, then choose your own team in the target's **Signing & Capabilities**. The checked-in team belongs to the original project setup. HealthKit requires a team/provisioning profile that supports that capability; if a Personal Team cannot provision it, use an eligible Apple Developer Program team.
+
+Command-line simulator build (no signing required):
+
+```sh
+xcodebuild -project aaltodepression.xcodeproj \
+  -scheme aaltodepression -configuration Debug \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath build/DerivedData build CODE_SIGNING_ALLOWED=NO
+```
+
+There is no XCTest target yet. Run the existing engine checks with `Tools/engine-check.sh`.
+Use a physical iPhone and Apple Watch for real sensor data and Messages testing.
+
 - Xcode 27, Swift 6, SwiftUI, SwiftData, HealthKit, Core Motion, Core Location, EventKit, PhotoKit. Minimum iOS 17.
 - Run on a device with your own personal team (Signing & Capabilities). When Health asks how much history to share, choose **All Recorded Data**.
 - Check the engine without Xcode: `Tools/engine-check.sh` prints Perttu's 60 days and verifies no escalation on the cold or the trip, step 1 on day 49 and step 2 on day 59.
@@ -84,3 +103,21 @@ Using passive sensing to trigger an early TMS booster is the hypothesis this pro
 | `docs/` | The original build brief |
 
 A prototype, not a medical device. It doesn't diagnose anything.
+
+## Beside first iPhone version
+
+The active interface is `Features/Everyday/EverydayRootView.swift`: English onboarding, personal profile and contact suggestions with Loved one/Friend roles. Today shows Eat, Move, Sleep and Connect with circular completion controls, followed by visible Reminders. Household checks are spaced out. Social invitations open the system Messages composer for the user to send. Background support delivery remains a local prototype; the backend integration is described below.
+
+Run `Tools/everyday-check.sh` for the new local planner and persistence checks; `Tools/engine-check.sh` still checks the original sensing engine.
+
+### Revision 2
+
+The active UI is English with native wheel/time pickers. Today shows four task toggles and Reminders; Your people lives under You. Optional Motion & Fitness reads today's steps; 500 observed steps can fill the movement row, with manual correction. Optional Apple Health reads recorded asleep intervals without double-counting overlapping sources. No phone inactivity is presented as confirmed sleep. MIELI is the support call action. Sensor reads refresh while Today is open and when the app becomes active. Background support delivery remains a local demo.
+
+### Backend UI integration
+
+The active frontend now owns `Backend` through `BesidePresentation`: the planner supplies task state, reminders, check-ins and social plans; tracking receives available real Motion and sleep signals. The earlier Everyday store retains profile/sensor inputs for migration, not the active home task state. Eat explicitly marks a meal, separately from grocery shopping. Connect stores a social/connect mark in the planner; medication moves to Reminders. Messages use the supplied templates plus editable text and native compose result handling.
+
+Demobar is a visibility-only overlay of the actual Backend instance: real check-ins, available sensor readings, the resulting day plan and backend call suggestions. It never switches to sample data. The overlay can be hidden in You → About Beside → Show Demobar; Debug builds show it by default and Release builds hide it by default. The light-green to dark-red gradient presents backend capacity and call suggestions. A dashed marker identifies the provisional plan when check-in and sensor readings are unavailable. Completion feedback is driven by backend task state and respects Reduce Motion.
+
+The new backend still simulates support delivery locally, as documented in `docs/BACKEND_API.md`. The UI labels requests accordingly. Automatic delivery to another person's phone is not provided by this pull.

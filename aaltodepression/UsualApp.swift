@@ -3,16 +3,13 @@ import SwiftData
 import UserNotifications
 
 @main
-struct UsualApp: App {
+struct BesideApp: App {
     @UIApplicationDelegateAdaptor private var delegate: AppDelegate
-    @State private var model = AppModel()
 
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(model)
+            EverydayRootView()
         }
-        .modelContainer(for: DailyFeature.self)
     }
 }
 
@@ -20,6 +17,7 @@ struct UsualApp: App {
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        PlannerNotifications.registerCategories()
         return true
     }
 
@@ -29,6 +27,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     /// The 12:00 reminder opens the message to the friend.
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        if let action = await PlannerNotifications.action(for: response) {
+            let date = response.notification.date
+            await MainActor.run { BesideNotificationInbox.shared.receive(action, at: date) }
+        }
         if response.notification.request.content.userInfo["compose"] as? Bool == true {
             await MainActor.run { NotificationCenter.default.post(name: .openCompose, object: nil) }
         }
@@ -37,6 +39,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
 extension Notification.Name {
     static let openCompose = Notification.Name("openCompose")
+    static let besidePlannerAction = Notification.Name("besidePlannerAction")
 }
 
 struct RootView: View {

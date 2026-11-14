@@ -7,3 +7,10 @@ build/
 # Xcode per-user state
 xcuserdata/
 *.xcuserstate
+
+# Local development files
+.DS_Store
+DerivedData/
+*.xcresult
+/work/
+/outputs/

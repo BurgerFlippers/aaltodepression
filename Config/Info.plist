@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSContactsUsageDescription</key>
+	<string>Suggests people for your support network from the contacts you choose to share. You confirm each person and their role. Contacts stay on this phone.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

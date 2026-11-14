@@ -250,6 +250,7 @@
 		000000000000000111000000 /* Debug configuration for PBXNativeTarget "aaltodepression" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Config/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -259,7 +260,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Usual;
+				INFOPLIST_KEY_CFBundleDisplayName = Beside;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Counts how many events you have each day and how long they last. Titles and details are never read.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads sleep, movement, heart, daylight and other Health data to notice changes in your daily rhythm. Everything is worked out on this phone.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Only used to save a practice breathing session when you ask for it in Settings.";
@@ -305,6 +306,7 @@
 		000000000000000112000000 /* Release configuration for PBXNativeTarget "aaltodepression" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Config/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -314,7 +316,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Usual;
+				INFOPLIST_KEY_CFBundleDisplayName = Beside;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Counts how many events you have each day and how long they last. Titles and details are never read.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads sleep, movement, heart, daylight and other Health data to notice changes in your daily rhythm. Everything is worked out on this phone.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Only used to save a practice breathing session when you ask for it in Settings.";
