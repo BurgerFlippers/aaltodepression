@@ -1,6 +1,6 @@
 import Foundation
 
-/// Synthetic patient Perttu: 60 days of every feature, deterministic.
+/// Synthetic demo user: 60 days of every feature, deterministic.
 /// Days 0–44 steady, a cold on 30–32, a trip on 38–40, drift from day 45.
 nonisolated enum DemoSource {
     static let dayCount = 60
@@ -52,7 +52,7 @@ nonisolated enum DemoSource {
     private static func add(_ n: Int, to t: inout FeatureTable, tz: TimeZone) {
         let d = day(n)
         let cold = (30...32).contains(n)
-        // Single short nights before the drift. Perttu did slow breathing on each and was back the next days.
+        // Single short nights before the drift. The demo user did slow breathing on each and was back the next days.
         let dip = [15, 21, 27, 35].contains(n)
         let trip = (38...40).contains(n)
         // Drift starts clearly on day 45 and is at full strength by day 46.
@@ -176,7 +176,7 @@ nonisolated enum DemoSource {
         // Logged only now and then, like a real person.
         if cold { t.set(F.symptomFatigue, d, 1); t.set(F.symptomHeadache, d, n == 31 ? 1 : 0) }
         if n == 52 { t.set(F.symptomSleepChanges, d, 1) }
-        // Perttu logs State of Mind in the Health app on most evenings. Not scored; Days compares it with Steadiness.
+        // The demo user logs State of Mind in the Health app on most evenings. Not scored; Days compares it with Steadiness.
         if chance("som-logged", n, 0.65) {
             var v = around("som", n, mix(0.32, -0.3), 0.14)
             if cold { v -= 0.2 }

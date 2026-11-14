@@ -108,8 +108,7 @@ nonisolated struct Scorer: Sendable {
         }
         record(.sleep, [part(F.sleepHours, oneSided: false), part(F.bedtime, oneSided: false),
                         part(F.wake, oneSided: false), part(F.awakeMin, oneSided: false), debt,
-                        extra(F.deepMin, .higherIsFine), extra(F.remMin, .higherIsFine),
-                        extra(F.sleepEfficiency, .higherIsFine), extra(F.breathingDisturbances, .lowerIsFine)])
+                        extra(F.sleepEfficiency, .higherIsFine)])
 
         // Rhythm: compared with the person's own regularity, not a fixed number of hours.
         let week = (day - 6, day + 1)
@@ -151,22 +150,14 @@ nonisolated struct Scorer: Sendable {
             lateListening = ScorePart(key: F.nightListeningMin, value: x, usual: u,
                                       points: x <= u.median ? 100 : Baseline.closeness(x, Usual(median: u.median, mad: max(u.mad, 5))))
         }
-        record(.rhythm, [spreadPart(F.wake, r.wakeSD), spreadPart(F.bedtime, r.bedtimeSD), midpoint, lateListening,
-                         extra(F.headphoneMin, .lowerIsFine), extra(F.toothbrushing, .higherIsFine)])
+        record(.rhythm, [spreadPart(F.wake, r.wakeSD), spreadPart(F.bedtime, r.bedtimeSD), midpoint, lateListening])
         r.rhythmParts = r.parts[.rhythm] ?? []
 
         // Hours with movement come from hourly Health steps, which go back years; Core Motion's
         // still hours only cover the last week, so they never build a usual.
         record(.movement, [part(F.steps, oneSided: true), part(F.exerciseMin, oneSided: true),
                            part(F.walkingSpeed, oneSided: false), part(F.activeHours, oneSided: true),
-                           extra(F.walkRunDistance, .higherIsFine), extra(F.flights, .higherIsFine),
-                           extra(F.standMin, .higherIsFine), extra(F.standHours, .higherIsFine),
-                           extra(F.activeEnergy, .higherIsFine), extra(F.physicalEffort, .higherIsFine),
-                           extra(F.workoutMin, .higherIsFine), extra(F.cyclingDistance, .higherIsFine),
-                           extra(F.stepLength, .either), extra(F.walkingSteadiness, .higherIsFine),
-                           extra(F.stairUpSpeed, .higherIsFine), extra(F.stairDownSpeed, .higherIsFine),
-                           extra(F.doubleSupport, .lowerIsFine), extra(F.walkAsymmetry, .lowerIsFine),
-                           extra(F.sixMinWalk, .higherIsFine), extra(F.walkingHours, .higherIsFine),
+                           extra(F.workoutMin, .higherIsFine), extra(F.walkingHours, .higherIsFine),
                            extra(F.stillHours, .lowerIsFine)])
 
         // Daylight: a fair target that shrinks in a Finnish winter.
@@ -183,27 +174,17 @@ nonisolated struct Scorer: Sendable {
                                      points: min(100, minutes / r.daylightTarget * 100))
             r.daylightEstimated = true
         }
-        if daylightPart != nil { record(.daylight, [daylightPart, extra(F.uvExposure, .higherIsFine)]) }
+        if daylightPart != nil { record(.daylight, [daylightPart]) }
 
+        // Places needs location; without it the score is simply missing (calendar and photos are not read).
         if locationEnabled {
             record(.places, [part(F.awayHours, oneSided: true), part(F.placesVisited, oneSided: true),
                              extra(F.homeHours, .lowerIsFine), extra(F.maxKmFromHome, .higherIsFine),
-                             extra(F.locationEntropy, .higherIsFine), extra(F.automotiveHours, .higherIsFine),
-                             extra(F.photosAwayFromHome, .higherIsFine), extra(F.calendarEvents, .higherIsFine),
-                             extra(F.eventHours, .higherIsFine), extra(F.photosTaken, .higherIsFine),
-                             extra(F.envSound, .higherIsFine)])
-        } else {
-            // Without location, the days still show contact with the world through calendar and photos.
-            record(.places, [extra(F.calendarEvents, .higherIsFine), extra(F.eventHours, .higherIsFine),
-                             extra(F.photosTaken, .higherIsFine), extra(F.envSound, .higherIsFine)])
+                             extra(F.locationEntropy, .higherIsFine)])
         }
 
         record(.body, [part(F.restingHR, oneSided: false), part(F.hrv, oneSided: false),
-                       part(F.wristTemp, oneSided: false), part(F.respRate, oneSided: false),
-                       extra(F.heartRate, .either), extra(F.heartRateMin, .either), extra(F.heartRateMax, .either),
-                       extra(F.walkingHR, .lowerIsFine), extra(F.hrRecovery, .higherIsFine),
-                       extra(F.vo2max, .higherIsFine), extra(F.spo2, .higherIsFine), extra(F.bodyMass, .either),
-                       extra(F.basalEnergy, .either)])
+                       part(F.wristTemp, oneSided: false), part(F.respRate, oneSided: false)])
 
         // Day score: weighted mean of what is available, renormalised.
         let available = r.scores

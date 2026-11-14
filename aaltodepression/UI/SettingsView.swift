@@ -9,6 +9,12 @@ struct SettingsView: View {
         @Bindable var model = model
         NavigationStack {
             Form {
+                // TEMPORARY (backend): entry to the backend testing screens in DevTools/. Remove with that folder.
+                Section {
+                    NavigationLink("Backend testing") { BackendTestingView() }
+                } footer: {
+                    Text("Temporary screens to test the backend. Not the final design.")
+                }
                 Section {
                     Toggle("Demo mode", isOn: Binding(get: { model.isDemo }, set: { model.mode = $0 ? .demo : .real }))
                     if model.isDemo {

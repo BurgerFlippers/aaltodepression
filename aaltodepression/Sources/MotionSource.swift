@@ -16,8 +16,7 @@ nonisolated enum MotionSource {
             manager.queryActivityStarting(from: start, to: end, to: OperationQueue()) { list, _ in
                 cont.resume(returning: (list ?? []).map { a in
                     Segment(startDate: a.startDate, confident: a.confidence != .low,
-                            key: a.stationary ? F.stillHours : a.running ? F.runningHours : a.walking ? F.walkingHours
-                                : a.automotive ? F.automotiveHours : a.cycling ? F.cyclingHours : nil)
+                            key: a.stationary ? F.stillHours : (a.walking || a.running) ? F.walkingHours : nil)
                 })
             }
         }

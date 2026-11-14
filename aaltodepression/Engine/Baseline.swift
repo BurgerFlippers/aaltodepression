@@ -40,7 +40,7 @@ nonisolated enum Baseline {
         "steps": 250, "exerciseMin": 3, "walkingSpeed": 0.02, "stillHours": 0.25,
         "awayHours": 0.25, "placesVisited": 0.5,
         "restingHR": 1, "hrv": 2, "wristTemp": 0.05, "respRate": 0.2,
-        "daylightMin": 3, "mindfulMin": 1, "activeHours": 1, "nightListeningMin": 5, "deepMin": 5, "remMin": 5, "sleepEfficiency": 0.02, "flights": 2, "standMin": 10, "standHours": 1, "activeEnergy": 25, "workoutMin": 5, "headphoneMin": 10, "homeHours": 0.5, "maxKmFromHome": 1, "locationEntropy": 0.1, "calendarEvents": 1, "eventHours": 0.5, "photosTaken": 1, "envSound": 2, "heartRate": 2, "heartRateMin": 2, "heartRateMax": 5, "walkingHR": 2, "bodyMass": 0.3, "basalEnergy": 20, "spo2": 0.005, "uvExposure": 0.3, "toothbrushing": 0.5, "breathingDisturbances": 0.5, "walkRunDistance": 0.2, "cyclingDistance": 1, "automotiveHours": 0.25, "photosAwayFromHome": 1,
+        "daylightMin": 3, "mindfulMin": 1, "activeHours": 1, "nightListeningMin": 5, "deepMin": 5, "remMin": 5, "sleepEfficiency": 0.02, "flights": 2, "standMin": 10, "standHours": 1, "activeEnergy": 25, "workoutMin": 5, "headphoneMin": 10, "homeHours": 0.5, "maxKmFromHome": 1, "locationEntropy": 0.1, "calendarEvents": 1, "eventHours": 0.5, "photosTaken": 1, "envSound": 2, "heartRate": 2, "heartRateMin": 2, "heartRateMax": 5, "walkingHR": 2, "bodyMass": 0.3, "basalEnergy": 20, "spo2": 0.005, "uvExposure": 0.3, "toothbrushing": 0.5, "breathingDisturbances": 0.5, "walkRunDistance": 0.2, "cyclingDistance": 1, "automotiveHours": 0.25, "photosAwayFromHome": 1, "screenTimeSelf": 0.5,
     ]
 
     static func median(_ sorted: [Double]) -> Double {

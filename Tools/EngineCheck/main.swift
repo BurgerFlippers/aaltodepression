@@ -34,7 +34,7 @@ for n in 30...32 { if days.first(where: { DemoSource.number(of: $0.day) == n })?
 for n in 38...40 { if days.first(where: { DemoSource.number(of: $0.day) == n })?.result.travelling != true { failures.append("trip day \(n) not flagged") } }
 
 // Every feature key in the catalog that the demo can provide must be present.
-let notInDemo: Set<String> = [F.phoneNightMin, F.deviceUsageMin, F.unlocks, F.keyboardTypingSpeed, F.messagesContacts, F.callMin, F.ambientLux, F.speechRate]
+let notInDemo: Set<String> = []
 let missing = FeatureCatalog.all.map(\.key).filter { !notInDemo.contains($0) && table.dayCount($0) == 0 }
 if !missing.isEmpty { failures.append("demo lacks features: \(missing)") }
 
@@ -47,6 +47,11 @@ for n in [49, 50, 55] {
         if s.action.key != "breath" { failures.append("day \(n) suggests \(s.action.key), expected breath") }
     }
 }
+
+failures += plannerChecks(table: table, history: days)
+failures += backendChecks(table: table)
+failures += screenTimeChecks(table: table)
+failures += demoStoryChecks(table: table, history: days)
 
 print("\nstep 1 first on day \(firstNudge.map(String.init) ?? "–"), step 2 first on day \(firstReach.map(String.init) ?? "–")")
 print(failures.isEmpty ? "ALL CHECKS PASSED" : "FAILED:\n  " + failures.joined(separator: "\n  "))

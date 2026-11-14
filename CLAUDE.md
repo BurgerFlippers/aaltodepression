@@ -2,7 +2,7 @@
 
 Tätä repoa kehittää samaan aikaan useampi ihminen ja heidän Claude-sessionsa. Nämä säännöt ovat olemassa, jotta muutokset eivät törmää toisiinsa. Noudata niitä jokaisessa sessiossa.
 
-Mitä rakennetaan: [docs/APP_DESIGN.md](docs/APP_DESIGN.md). Mitä dataa saa kerätä: [docs/DATA_SCOPE.md](docs/DATA_SCOPE.md).
+Mitä rakennetaan: [docs/APP_DESIGN.md](docs/APP_DESIGN.md). Mitä dataa saa kerätä: [docs/DATA_SCOPE.md](docs/DATA_SCOPE.md). Miten frontend käyttää backendia: [docs/BACKEND_API.md](docs/BACKEND_API.md).
 
 ## 1. Kuka omistaa mitäkin
 
@@ -13,6 +13,7 @@ Kysy käyttäjältä aina session alussa, onko hän **backend** vai **frontend**
 | Logiikka ja data | **backend** | `aaltodepression/Engine/**`, `aaltodepression/Sources/**`, `aaltodepression/Store/**`, `aaltodepression/Resources/*.json`, `Tools/**` |
 | Näkymät | **frontend** | `aaltodepression/UI/**`, `aaltodepression/Features/**`, `aaltodepression/Assets.xcassets/**` |
 | Sopimus (rajapinta) | **backend** kirjoittaa, frontend lukee | `aaltodepression/Engine/Contracts/**` |
+| Väliaikaiset testinäkymät | **backend**, poistetaan kun oikeat näkymät ovat valmiit | `aaltodepression/DevTools/**` (avataan Settingsin "Backend testing" -rivistä) |
 | Kuumat tiedostot | **vain sovitusti**, yksi kerrallaan | `aaltodepression/AppModel.swift`, `aaltodepression/UsualApp.swift`, `aaltodepression.xcodeproj/**`, `Config/**` |
 | Dokumentit | kuka tahansa, vain oma osio | `docs/**`, `README.md`, `CLAUDE.md` |
 
@@ -83,5 +84,5 @@ Tools/engine-check.sh
 
 - Swift 6 ja SwiftUI, minimi iOS 17. Uudemmat rajapinnat `#available`-tarkistuksen taakse.
 - **Ilmainen personal team:** ei push-ilmoituksia, WeatherKitiä eikä tekstiviestipalvelinta. Läheisen viestit ovat demossa simuloituja.
-- **Turvallisuustekstit** (`Resources/safety_copy.json` ja turvapolku) ovat lääkärin tarkistettavia työversioita. Muuta niitä vain, kun käyttäjä pyytää.
-- Sovelluksen näkyvä teksti on suomeksi. Koodi, tunnisteet ja kommentit ovat englanniksi.
+- **Turvallisuustekstit** (`Engine/Planner/SafetyFlow.swift`, `SafetyCopy`) ovat lääkärin tarkistettavia työversioita. Muuta niitä vain, kun käyttäjä pyytää.
+- **Kaikki sovelluksessa on englanniksi:** näkyvä teksti, viestipohjat, turvallisuustekstit, koodi, tunnisteet ja kommentit.

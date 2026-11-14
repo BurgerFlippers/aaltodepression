@@ -1,7 +1,7 @@
 import Foundation
 import HealthKit
 
-/// Reads every available Health type as one value per day. Missing types never crash;
+/// Reads the agreed Health types as one value per day. Missing types never crash;
 /// empty results are left unknown (HealthKit cannot tell "denied" from "no data").
 nonisolated struct HealthKitSource: Sendable {
     struct QuantitySpec: Sendable {
@@ -16,89 +16,27 @@ nonisolated struct HealthKitSource: Sendable {
 
     static var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
+    /// Only the agreed data scope (docs/DATA_SCOPE.md). Everything else in Health is left unread.
     static let quantitySpecs: [QuantitySpec] = {
         let perMin = HKUnit.count().unitDivided(by: .minute())
         let mps = HKUnit.meter().unitDivided(by: .second())
-        var s: [QuantitySpec] = [
+        return [
             .init(key: F.steps, id: .stepCount, options: .cumulativeSum, unit: .count()),
-            .init(key: F.walkRunDistance, id: .distanceWalkingRunning, options: .cumulativeSum, unit: .meterUnit(with: .kilo)),
-            .init(key: F.flights, id: .flightsClimbed, options: .cumulativeSum, unit: .count()),
             .init(key: F.walkingSpeed, id: .walkingSpeed, options: .discreteAverage, unit: mps),
-            .init(key: F.stepLength, id: .walkingStepLength, options: .discreteAverage, unit: .meter()),
-            .init(key: F.walkAsymmetry, id: .walkingAsymmetryPercentage, options: .discreteAverage, unit: .percent()),
-            .init(key: F.doubleSupport, id: .walkingDoubleSupportPercentage, options: .discreteAverage, unit: .percent()),
-            .init(key: F.stairUpSpeed, id: .stairAscentSpeed, options: .discreteAverage, unit: mps),
-            .init(key: F.stairDownSpeed, id: .stairDescentSpeed, options: .discreteAverage, unit: mps),
-            .init(key: F.sixMinWalk, id: .sixMinuteWalkTestDistance, options: .discreteAverage, unit: .meter()),
-            .init(key: F.walkingSteadiness, id: .appleWalkingSteadiness, options: .discreteAverage, unit: .percent()),
             .init(key: F.exerciseMin, id: .appleExerciseTime, options: .cumulativeSum, unit: .minute()),
-            .init(key: F.standMin, id: .appleStandTime, options: .cumulativeSum, unit: .minute()),
-            .init(key: F.activeEnergy, id: .activeEnergyBurned, options: .cumulativeSum, unit: .kilocalorie()),
-            .init(key: F.physicalEffort, id: .physicalEffort, options: .discreteAverage,
-                  unit: .kilocalorie().unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .hour()))),
             .init(key: F.daylightMin, id: .timeInDaylight, options: .cumulativeSum, unit: .minute()),
-            .init(key: F.heartRate, id: .heartRate, options: [.discreteAverage, .discreteMin, .discreteMax], unit: perMin,
-                  minKey: F.heartRateMin, maxKey: F.heartRateMax),
             .init(key: F.restingHR, id: .restingHeartRate, options: .discreteAverage, unit: perMin),
-            .init(key: F.walkingHR, id: .walkingHeartRateAverage, options: .discreteAverage, unit: perMin),
             .init(key: F.hrv, id: .heartRateVariabilitySDNN, options: .discreteAverage, unit: .secondUnit(with: .milli)),
-            .init(key: F.hrRecovery, id: .heartRateRecoveryOneMinute, options: .discreteAverage, unit: perMin),
-            .init(key: F.vo2max, id: .vo2Max, options: .discreteAverage, unit: HKUnit(from: "ml/kg*min")),
             .init(key: F.respRate, id: .respiratoryRate, options: .discreteAverage, unit: perMin),
-            .init(key: F.spo2, id: .oxygenSaturation, options: .discreteAverage, unit: .percent()),
             .init(key: F.wristTemp, id: .appleSleepingWristTemperature, options: .discreteAverage, unit: .degreeCelsius()),
-            .init(key: F.envSound, id: .environmentalAudioExposure, options: .discreteAverage, unit: .decibelAWeightedSoundPressureLevel()),
-            .init(key: F.headphoneSound, id: .headphoneAudioExposure, options: [.discreteAverage, .duration],
-                  unit: .decibelAWeightedSoundPressureLevel(), durationKey: F.headphoneMin),
-            .init(key: F.caffeine, id: .dietaryCaffeine, options: .cumulativeSum, unit: .gramUnit(with: .milli)),
-            .init(key: F.alcohol, id: .numberOfAlcoholicBeverages, options: .cumulativeSum, unit: .count()),
         ]
-        s += [
-            .init(key: F.height, id: .height, options: .discreteAverage, unit: .meterUnit(with: .centi)),
-            .init(key: F.bodyMass, id: .bodyMass, options: .discreteAverage, unit: .gramUnit(with: .kilo)),
-            .init(key: F.basalEnergy, id: .basalEnergyBurned, options: .cumulativeSum, unit: .kilocalorie()),
-            .init(key: F.cyclingDistance, id: .distanceCycling, options: .cumulativeSum, unit: .meterUnit(with: .kilo)),
-            .init(key: F.uvExposure, id: .uvExposure, options: .discreteAverage, unit: .count()),
-            .init(key: F.water, id: .dietaryWater, options: .cumulativeSum, unit: .liter()),
-            .init(key: F.soundReduction, id: .environmentalSoundReduction, options: .discreteAverage, unit: .decibelAWeightedSoundPressureLevel()),
-            .init(key: F.falls, id: .numberOfTimesFallen, options: .cumulativeSum, unit: .count()),
-        ]
-        if #available(iOS 18.0, *) {
-            s.append(.init(key: F.workoutEffort, id: .workoutEffortScore, options: .discreteAverage, unit: .appleEffortScore()))
-        }
-        if #available(iOS 18.0, *) {
-            s.append(.init(key: F.breathingDisturbances, id: .appleSleepingBreathingDisturbances, options: .discreteAverage, unit: .count()))
-        }
-        return s
     }()
-
-    /// Category types counted per day, with the raw values that mean "present".
-    static let countedCategories: [(key: String, id: HKCategoryTypeIdentifier, present: Set<Int>?)] = [
-        (F.hrHighEvents, .highHeartRateEvent, nil),
-        (F.hrLowEvents, .lowHeartRateEvent, nil),
-        (F.irregularRhythmEvents, .irregularHeartRhythmEvent, nil),
-        (F.loudEnvEvents, .environmentalAudioExposureEvent, nil),
-        (F.loudHeadphoneEvents, .headphoneAudioExposureEvent, nil),
-        // Symptom logs can say "not present"; count only real entries.
-        (F.symptomFatigue, .fatigue, Set([HKCategoryValueSeverity.unspecified, .mild, .moderate, .severe].map(\.rawValue))),
-        (F.symptomHeadache, .headache, Set([HKCategoryValueSeverity.unspecified, .mild, .moderate, .severe].map(\.rawValue))),
-        (F.symptomSleepChanges, .sleepChanges, [HKCategoryValuePresence.present.rawValue]),
-        (F.symptomMoodChanges, .moodChanges, [HKCategoryValuePresence.present.rawValue]),
-        (F.symptomAppetiteChanges, .appetiteChanges, [HKCategoryValueAppetiteChanges.decreased.rawValue,
-                                                      HKCategoryValueAppetiteChanges.increased.rawValue]),
-        (F.handwashing, .handwashingEvent, nil),
-        (F.standHours, .appleStandHour, [HKCategoryValueAppleStandHour.stood.rawValue]),
-        (F.lowFitnessEvents, .lowCardioFitnessEvent, nil),
-        (F.toothbrushing, .toothbrushingEvent, nil),
-    ]
 
     static var readTypes: Set<HKObjectType> {
         var types = Set<HKObjectType>(quantitySpecs.map { HKQuantityType($0.id) })
-        for c in countedCategories { types.insert(HKCategoryType(c.id)) }
-        if #available(iOS 18.0, *) { types.insert(HKCategoryType(.sleepApneaEvent)) }
+        // Headphone exposure is read only for its timing (late-night listening), never its level.
+        types.insert(HKQuantityType(.headphoneAudioExposure))
         types.insert(HKCategoryType(.sleepAnalysis))
-        types.insert(HKCharacteristicType(.dateOfBirth))
-        types.insert(HKCharacteristicType(.biologicalSex))
         types.insert(HKCategoryType(.mindfulSession))
         types.insert(HKObjectType.workoutType())
         if #available(iOS 18.0, *) {
@@ -111,12 +49,19 @@ nonisolated struct HealthKitSource: Sendable {
         return types
     }
 
+    /// Types the app writes: the daily check-in as State of Mind (iOS 18) and breathing sessions.
+    static var shareTypes: Set<HKSampleType> {
+        var types: Set<HKSampleType> = [HKCategoryType(.mindfulSession)]
+        if #available(iOS 18.0, *) { types.insert(HKObjectType.stateOfMindType()) }
+        return types
+    }
+
     let store = HKHealthStore()
 
     func requestAuthorization() async throws {
         // Ask only for types this device and OS allow, so one unsupported type never crashes the request.
         let allowed = Self.readTypes.filter { !Self.disallowed.contains($0.identifier) }
-        try await store.requestAuthorization(toShare: [], read: allowed)
+        try await store.requestAuthorization(toShare: Self.shareTypes, read: allowed)
     }
 
     /// Types HealthKit refuses in a plain read request on some systems.
@@ -137,16 +82,12 @@ nonisolated struct HealthKitSource: Sendable {
             for spec in Self.quantitySpecs {
                 group.addTask { (try? await quantity(spec, from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             }
-            for c in Self.countedCategories {
-                group.addTask { (try? await categoryCount(c.key, c.id, present: c.present, from: start, to: end, calendar: calendar)) ?? FeatureTable() }
-            }
             group.addTask { (try? await sleep(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             group.addTask { (try? await mindful(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             group.addTask { (try? await workouts(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             group.addTask { (try? await nightListening(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             group.addTask { (try? await hourlySteps(from: start, to: end, latitude: latitude, longitude: longitude, calendar: calendar)) ?? FeatureTable() }
             if #available(iOS 18.0, *) {
-                group.addTask { (try? await categoryCount(F.breathingEvents, .sleepApneaEvent, present: nil, from: start, to: end, calendar: calendar)) ?? FeatureTable() }
                 group.addTask { (try? await stateOfMind(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
                 group.addTask { (try? await assessments(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             }
@@ -155,31 +96,11 @@ nonisolated struct HealthKitSource: Sendable {
             }
             var all = FeatureTable()
             for await t in group { all.merge(t) }
-            all.merge(personalDetails(calendar: calendar))
             return all
         }
     }
 
     // MARK: - Readers
-
-    /// Age and biological sex, as Saunasense reads them. Stored on today's date.
-    private func personalDetails(calendar: Calendar) -> FeatureTable {
-        var t = FeatureTable()
-        let today = Day(Date(), calendar: calendar)
-        if let dob = try? store.dateOfBirthComponents(), let birth = calendar.date(from: dob),
-           let years = calendar.dateComponents([.year], from: birth, to: Date()).year {
-            t.set(F.age, today, Double(years))
-        }
-        if let sex = try? store.biologicalSex().biologicalSex {
-            switch sex {
-            case .female: t.setText(F.sex, today, "Female")
-            case .male: t.setText(F.sex, today, "Male")
-            case .other: t.setText(F.sex, today, "Other")
-            default: break
-            }
-        }
-        return t
-    }
 
     private func quantity(_ spec: QuantitySpec, from: Date, to: Date, calendar: Calendar) async throws -> FeatureTable {
         let predicate = HKSamplePredicate.quantitySample(type: HKQuantityType(spec.id),
@@ -204,16 +125,6 @@ nonisolated struct HealthKitSource: Sendable {
         let d = HKSampleQueryDescriptor(predicates: [.categorySample(type: type, predicate: HKQuery.predicateForSamples(withStart: from, end: to))],
                                         sortDescriptors: [SortDescriptor(\.startDate)])
         return try await d.result(for: store)
-    }
-
-    private func categoryCount(_ key: String, _ id: HKCategoryTypeIdentifier, present: Set<Int>?, from: Date, to: Date, calendar: Calendar) async throws -> FeatureTable {
-        var counts: [Day: Double] = [:]
-        for s in try await samples(HKCategoryType(id), from: from, to: to) where present?.contains(s.value) ?? true {
-            counts[Day(s.startDate, calendar: calendar), default: 0] += 1
-        }
-        var t = FeatureTable()
-        for (d, v) in counts { t.set(key, d, v) }
-        return t
     }
 
     /// Nights are assigned to the morning they end, with 18:00 as the day boundary.
@@ -270,19 +181,12 @@ nonisolated struct HealthKitSource: Sendable {
     private func workouts(from: Date, to: Date, calendar: Calendar) async throws -> FeatureTable {
         let d = HKSampleQueryDescriptor(predicates: [.workout(HKQuery.predicateForSamples(withStart: from, end: to))],
                                         sortDescriptors: [SortDescriptor(\.startDate)])
-        var count: [Day: Double] = [:], mins: [Day: Double] = [:], kinds: [Day: Set<UInt>] = [:]
+        var mins: [Day: Double] = [:]
         for w in try await d.result(for: store) {
-            let day = Day(w.startDate, calendar: calendar)
-            count[day, default: 0] += 1
-            mins[day, default: 0] += w.duration / 60
-            kinds[day, default: []].insert(w.workoutActivityType.rawValue)
+            mins[Day(w.startDate, calendar: calendar), default: 0] += w.duration / 60
         }
         var t = FeatureTable()
-        for (day, c) in count {
-            t.set(F.workoutCount, day, c)
-            t.set(F.workoutMin, day, mins[day])
-            t.set(F.workoutTypes, day, Double(kinds[day]?.count ?? 0))
-        }
+        for (day, m) in mins { t.set(F.workoutMin, day, m) }
         return t
     }
 
