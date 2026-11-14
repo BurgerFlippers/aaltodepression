@@ -5,6 +5,7 @@ import MessageUI
 struct MessageCompose: UIViewControllerRepresentable {
     let recipient: String
     let body: String
+    var onResult: ((MessageComposeResult) -> Void)? = nil
     var onFinish: () -> Void
 
     static var canSend: Bool { MFMessageComposeViewController.canSendText() }
@@ -18,13 +19,14 @@ struct MessageCompose: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ vc: MFMessageComposeViewController, context: Context) {}
-    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
+    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish, onResult: onResult) }
 
     final class Coordinator: NSObject, MFMessageComposeViewControllerDelegate {
         let onFinish: () -> Void
-        init(onFinish: @escaping () -> Void) { self.onFinish = onFinish }
+        let onResult: ((MessageComposeResult) -> Void)?
+        init(onFinish: @escaping () -> Void, onResult: ((MessageComposeResult) -> Void)?) { self.onFinish = onFinish; self.onResult = onResult }
         func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
-            MainActor.assumeIsolated { onFinish() }
+            MainActor.assumeIsolated { onResult?(result); onFinish() }
         }
     }
 }
