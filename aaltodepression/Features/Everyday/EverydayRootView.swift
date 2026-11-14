@@ -29,7 +29,7 @@ private struct EverydaySessionView: View {
             Group {
                 if store.state.completedSetup {
                     TabView {
-                        EverydayTodayView().tabItem { Label("Today", systemImage: "sun.max") }
+                        EverydayTodayView(showDayPicker: showDemobar).tabItem { Label("Routine", systemImage: "sun.max") }
                         EverydayProfileView().tabItem { Label("You", systemImage: "person.crop.circle") }
                     }
                 } else { EverydayOnboardingView() }

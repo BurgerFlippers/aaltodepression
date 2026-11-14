@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct EverydayTodayView: View {
+    var showDayPicker = false
     @Environment(EverydayStore.self) private var store
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -77,6 +78,9 @@ struct EverydayTodayView: View {
                     }.padding(20)
                 }.refreshable { await presentation.refresh() }
                 .onChange(of: context.date) { _, _ in Task { await presentation.refresh() } }
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if showDayPicker { BesideDayPicker() }
             }
             .background(EverydayStyle.paper).navigationBarTitleDisplayMode(.inline)
             .toolbar {

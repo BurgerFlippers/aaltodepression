@@ -18,7 +18,7 @@ struct BesideDemoBar: View {
             Button { details = true } label: {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text(presentation.isDemoMode ? "DEMOBAR · DEMO COPY" : "DEMOBAR · LIVE HEALTH").font(.caption2.bold()).tracking(0.6)
+                        Text(presentation.isDemoMode ? "DEMOBAR · DEMO COPY" : "DEMOBAR · LIVE DATA").font(.caption2.bold()).tracking(0.6)
                         Spacer()
                         Image(systemName: "slider.horizontal.3")
                     }
@@ -36,9 +36,25 @@ struct BesideDemoBar: View {
                         }
                     }.frame(height: 18).accessibilityHidden(true)
                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: presentation.indicatorPosition)
-                    HStack { Text("Your usual"); Spacer(); Text("More support") }.font(.caption2).foregroundStyle(.secondary)
+                    HStack {
+                        Text(presentation.routineFeedback.categoryCount == 0 ? "Your usual" : "\(presentation.routineFeedback.categoryCount) routine \(presentation.routineFeedback.categoryCount == 1 ? "category" : "categories") logged")
+                        Spacer()
+                        Text("More support")
+                    }.font(.caption2).foregroundStyle(.secondary)
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityHint("Opens day selection and editable demo statistics")
+
+        }.foregroundStyle(EverydayStyle.ink).padding(.horizontal, 16).padding(.vertical, 8)
+            .frame(maxWidth: .infinity).background(EverydayStyle.paper)
+            .overlay(alignment: .bottom) { Divider() }
+            .sheet(isPresented: $details) { BesideDemoControlsView() }
+    }
+}
+
+/// Day selection lives below the Routine navigation bar, separate from the judging overlay.
+struct BesideDayPicker: View {
+    @Environment(BesidePresentation.self) private var presentation
+    var body: some View {
             HStack(spacing: 5) {
                 Button { presentation.selectDay(presentation.day - 1) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 32) }
                     .disabled(presentation.day <= Day(Date()) - 120).accessibilityLabel("Previous day")
@@ -52,10 +68,10 @@ struct BesideDemoBar: View {
                 Button { presentation.selectDay(presentation.day + 1) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 32) }
                     .disabled(presentation.day >= Day(Date())).accessibilityLabel("Next day")
             }
-        }.foregroundStyle(EverydayStyle.ink).padding(.horizontal, 16).padding(.vertical, 8)
-            .frame(maxWidth: .infinity).background(EverydayStyle.paper)
-            .overlay(alignment: .bottom) { Divider() }
-            .sheet(isPresented: $details) { BesideDemoControlsView() }
+        .foregroundStyle(EverydayStyle.ink)
+        .padding(.horizontal, 16).padding(.vertical, 8)
+        .background(EverydayStyle.paper)
+        .overlay(alignment: .bottom) { Divider() }
     }
 }
 

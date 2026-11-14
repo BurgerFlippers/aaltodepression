@@ -137,3 +137,9 @@ The six category boxes keep their size and add short subtitles. Actions replaces
 Support choices are grocery shopping, pharmacy visits, home cleaning and social contact. `ReachOutRules` only proposes contact after two active days with an unmarked category; it does not queue a message or infer what happened outside Beside. The separate automatic-request judging scene is gated by sandbox mode, opt-in and recipient agreement and reuses existing message limits. No automatic messages are delivered.
 
 [HealthKit read scope](docs/HEALTHKIT_DATA.md) lists every active signal. Nutrition and Mind are optional read-only context, separated from automatic scoring and contact rules. Rules and message templates remain in Engine, persistence and orchestration in Store, Health reads in Sources, and screen state and composition in Features.
+
+### Routine feedback and flat profile
+
+Routine replaces the Today tab label. The profile page shows name, daily rhythm and people in one scrollable page, titled with the person's name. Contacts use ID-resolved role bindings so deleting a row while its menu closes cannot access a stale array index.
+
+The Demobar now presents the Health-based position plus small, explicitly labelled routine feedback. Each manually logged category contributes a 1.5 percentage-point greenward shift, up to 9; undo and day selection recompute it from saved marks. This does not alter the Health engine or suppress support suggestions.

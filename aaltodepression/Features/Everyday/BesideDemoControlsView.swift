@@ -149,6 +149,12 @@ struct BesideDemoControlsView: View {
                     if let contact = presentation.callCue { Label("A call from \(contact) is suggested", systemImage: "phone.fill") }
                 } header: { Text("What drives the bar") } footer: { Text("The backend compares sleep, rhythm, movement, daylight and body signals with your own history. Live today uses the last complete day to avoid comparing partial steps with a full day. The demo evaluates the selected day. This is a prototype change indicator, not a depression diagnosis. Contact suggestions also depend on the support agreements in the backend.") }
                 Section {
+                    LabeledContent("For", value: presentation.day.start().formatted(date: .abbreviated, time: .omitted))
+                    LabeledContent("Routine categories logged", value: "\(presentation.routineFeedback.categoryCount) / 6")
+                    LabeledContent("Routine display adjustment", value: "\(presentation.routineFeedback.categoryCount == 0 ? "" : "−")\((presentation.routineFeedback.adjustment * 100).formatted(.number.precision(.fractionLength(0...1)))) percentage points")
+                    Text("Each logged routine category moves the marker slightly towards green, up to 9 percentage points. Undo removes its contribution. This visual feedback leaves Health scores and support suggestions unchanged.").font(.footnote).foregroundStyle(.secondary)
+                } header: { Text("Routine feedback") }
+                Section {
                     DisclosureGroup("Automatic support demo") {
                         NavigationLink("Support choices and agreement") {
                             ScrollView { EverydaySupportSetupFields().padding(20) }.background(EverydayStyle.paper).navigationTitle("Support choices").navigationBarTitleDisplayMode(.inline)

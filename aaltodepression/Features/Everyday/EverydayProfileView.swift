@@ -1,25 +1,38 @@
 import SwiftUI
 
 struct EverydayProfileView: View {
-    @State private var showSupport = false
+    @Environment(EverydayStore.self) private var store
     @State private var showDemo = false
+    private var name: String { store.state.profile.name.trimmingCharacters(in: .whitespacesAndNewlines) }
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Your setup") {
-                    NavigationLink {
-                        ScrollView { EverydayProfileFields().padding(20) }.background(EverydayStyle.paper).navigationTitle("Your name")
-                            .toolbar { ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) } } }
-                    } label: { Text("Your name") }
-                    NavigationLink {
-                        ScrollView { EverydayRoutineFields().padding(20) }.background(EverydayStyle.paper).navigationTitle("Daily rhythm")
-                    } label: { Text("Daily rhythm") }
-                    NavigationLink("Your people") { EverydayNetworkView() }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    section("Your name") { EverydayProfileFields() }
+                    section("Daily rhythm") { EverydayRoutineFields() }
+                    section("Your people") {
+                        EverydayContactsEditor().padding(18)
+                            .background(.white, in: RoundedRectangle(cornerRadius: 18))
+                    }
+                }.padding(20)
+            }.scrollDismissesKeyboard(.interactively).background(EverydayStyle.paper)
+                .navigationTitle(name.isEmpty ? "Your profile" : name)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { showDemo = true } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel("Demo controls")
+                    }
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
+                    }
                 }
-            }.navigationTitle("You")
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { showDemo = true } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel("Demo controls") } }
                 .sheet(isPresented: $showDemo) { BesideDemoControlsView() }
-                .sheet(isPresented: $showSupport) { EverydayHelpView() }
+        }
+    }
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(.headline).accessibilityAddTraits(.isHeader)
+            content()
         }
     }
 }

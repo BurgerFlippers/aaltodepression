@@ -29,3 +29,7 @@ A missing-category reach-out suggestion is separate from Health scoring: two pre
 - [Apple HealthKit data types](https://developer.apple.com/documentation/healthkit/data-types)
 - [Apple HealthKit updates: mental wellbeing samples](https://developer.apple.com/documentation/updates/healthkit)
 - [Apple SMS links](https://developer.apple.com/library/archive/featuredarticles/iPhoneURLScheme_Reference/SMSLinks/SMSLinks.html)
+
+## Routine display feedback
+
+The displayed marker adds a small presentation adjustment to the Health-based position: 1.5 percentage points towards green for each distinct manually logged category on the selected day, capped at 9 points. The raw Health scores, baseline, support decisions and automatic-message rules remain unchanged. Repeated same-category marks cannot accumulate extra credit, and undo removes the contribution when no done mark remains in that category. Even the maximum adjustment keeps an active call signal in the red. Demo controls show the Health evaluation day and the routine-feedback day separately.

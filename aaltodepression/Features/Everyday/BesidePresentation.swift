@@ -194,7 +194,9 @@ final class BesidePresentation {
     var signalDay: Day { !isDemoMode && day == Day(Date()) ? day - 1 : day }
     var healthSignal: StepDay? { healthHistory.first { $0.day == signalDay } }
     var signalHasBaseline: Bool { healthSignal?.baselineDay != nil }
-    var indicatorPosition: Double? {
+    var routineFeedback: BesideRoutineFeedback { BesideRoutineFeedback(day: day, marks: backend.planner.state.marks) }
+    var indicatorPosition: Double? { baseIndicatorPosition.map { routineFeedback.position(from: $0) } }
+    var baseIndicatorPosition: Double? {
         if callCue != nil || healthSignal?.step == .reachOut { return 0.95 }
         if let steadiness = healthSignal?.result.steadiness { return min(0.95, max(0.05, 1 - steadiness / 100)) }
         guard let capacity = backend.planner.today?.capacity else { return nil }
