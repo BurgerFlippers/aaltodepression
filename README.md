@@ -121,3 +121,19 @@ The active frontend now owns `Backend` through `BesidePresentation`: the planner
 Demobar is a visibility-only overlay of the actual Backend instance: real check-ins, available sensor readings, the resulting day plan and backend call suggestions. It never switches to sample data. The overlay can be hidden in You → About Beside → Show Demobar; Debug builds show it by default and Release builds hide it by default. The light-green to dark-red gradient presents backend capacity and call suggestions. A dashed marker identifies the provisional plan when check-in and sensor readings are unavailable. Completion feedback is driven by backend task state and respects Reduce Motion.
 
 The new backend still simulates support delivery locally, as documented in `docs/BACKEND_API.md`. The UI labels requests accordingly. Automatic delivery to another person's phone is not provided by this pull.
+
+### Day-by-day judging controls
+
+Tap the Demobar controls icon to browse up to 120 days of available Health history. Select a date to open an isolated, in-memory copy of the real planner, inspect readings and apply labelled demo overrides. Edits are session-only, never written to Health or the live planner. Return to live today restores the live instance. Hiding the bar also returns to live mode.
+
+The Health connection requests read-only access for steps, walking speed, exercise, daylight, resting heart rate, HRV, breathing rate, wrist temperature and recorded sleep. Shared daily readings flow through the existing StepEngine; the bar visualises its changes from the personal baseline. Live mode uses the last complete day, while the demo evaluates the selected day. Missing data remains unknown and the provisional fallback marker is dashed. This is a prototype change indicator, not a depression diagnosis.
+
+Home starts with Eat, Move, Sleep, Social, Medicine and Cleaning. The pencil opens native reorder/delete controls, hidden presets and custom boxes; layout preferences persist locally. Generic Medicine and Cleaning marks do not create dosing schedules or infer a specific chore's completion. Profile entry now asks for name only; the retired demographic fields are cleared when the interface starts. Your people keeps the contact list and per-person role picker. Get support puts personal contacts before the Emergency helpline section.
+
+### Actions and user-led contact
+
+The six category boxes keep their size and add short subtitles. Actions replaces Reminders. The check-in uses coloured cards and the clearer “How is your energy today?” question. Reach out opens Messages for the selected person without a body or app-side send tracking; optional writing help is collapsed by default and uses the system composer for an editable draft.
+
+Support choices are grocery shopping, pharmacy visits, home cleaning and social contact. `ReachOutRules` only proposes contact after two active days with an unmarked category; it does not queue a message or infer what happened outside Beside. The separate automatic-request judging scene is gated by sandbox mode, opt-in and recipient agreement and reuses existing message limits. No automatic messages are delivered.
+
+[HealthKit read scope](docs/HEALTHKIT_DATA.md) lists every active signal. Nutrition and Mind are optional read-only context, separated from automatic scoring and contact rules. Rules and message templates remain in Engine, persistence and orchestration in Store, Health reads in Sources, and screen state and composition in Features.

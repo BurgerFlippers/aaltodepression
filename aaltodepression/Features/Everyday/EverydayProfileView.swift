@@ -2,29 +2,23 @@ import SwiftUI
 
 struct EverydayProfileView: View {
     @State private var showSupport = false
+    @State private var showDemo = false
     var body: some View {
         NavigationStack {
             Form {
                 Section("Your setup") {
                     NavigationLink {
-                        ScrollView { EverydayProfileFields().padding(20) }.background(EverydayStyle.paper).navigationTitle("About you")
+                        ScrollView { EverydayProfileFields().padding(20) }.background(EverydayStyle.paper).navigationTitle("Your name")
                             .toolbar { ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) } } }
-                    } label: { Text("About you") }
+                    } label: { Text("Your name") }
                     NavigationLink {
                         ScrollView { EverydayRoutineFields().padding(20) }.background(EverydayStyle.paper).navigationTitle("Daily rhythm")
                     } label: { Text("Daily rhythm") }
                     NavigationLink("Your people") { EverydayNetworkView() }
                 }
-                Section("Automatic updates") {
-                    NavigationLink("Movement & sleep") {
-                        ScrollView { EverydaySensorSettings().padding(20) }.background(EverydayStyle.paper).navigationTitle("Movement & sleep")
-                    }
-                }
-                Section {
-                    Button("Talk to someone") { showSupport = true }
-                    NavigationLink("About Beside") { EverydayAboutView() }
-                }
             }.navigationTitle("You")
+                .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { showDemo = true } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel("Demo controls") } }
+                .sheet(isPresented: $showDemo) { BesideDemoControlsView() }
                 .sheet(isPresented: $showSupport) { EverydayHelpView() }
         }
     }
@@ -60,30 +54,57 @@ struct EverydayHelpView: View {
     @Environment(\.openURL) private var openURL
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Button {
-                        if let url = URL(string: "tel:+358925250111") { openURL(url) }
-                    } label: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Call MIELI Crisis Helpline").font(.headline)
-                            Text("09 2525 0111").font(.body.monospacedDigit())
-                        }.padding(.vertical, 8)
-                    }.accessibilityIdentifier("mieli-call")
-                    Link("About the helpline", destination: URL(string: "https://mieli.fi/tukea-ja-apua/kriisipuhelin?oai_link_source=model_response_hotline")!)
-                } footer: { Text("Confidential phone support, 24/7.") }
-                if store.state.people.contains(where: { $0.role == .close }) {
-                    Section("Your loved ones") {
-                        ForEach(store.state.people.filter { $0.role == .close }) { person in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 26) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Your people").font(.largeTitle.bold())
+                        Text("You can call someone you know. You don't need to find the right words first.").foregroundStyle(.secondary)
+                    }
+                    if store.state.people.isEmpty {
+                        NavigationLink { EverydayNetworkView() } label: {
+                            Label("Add someone you trust", systemImage: "person.crop.circle.badge.plus")
+                                .frame(maxWidth: .infinity, minHeight: 64).background(EverydayStyle.mint, in: RoundedRectangle(cornerRadius: 20))
+                        }
+                    } else {
+                        ForEach(store.state.people.sorted { $0.role == .close && $1.role != .close }) { person in
                             Button {
                                 let number = person.phone.filter { $0.isNumber || $0 == "+" }
                                 if let url = URL(string: "tel:\(number)") { openURL(url) }
-                            } label: { Label("Call \(person.name)", systemImage: "phone") }
+                            } label: {
+                                HStack(spacing: 16) {
+                                    Image(systemName: "person.crop.circle.fill").font(.system(size: 42))
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(person.name).font(.title2.bold())
+                                        Text(person.role.title).font(.subheadline)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "phone.fill").font(.title2).padding(12).background(.white.opacity(0.7), in: Circle())
+                                }.padding(20).frame(maxWidth: .infinity, minHeight: 104)
+                                    .background(person.role == .close ? EverydayStyle.mint : EverydayStyle.lavender, in: RoundedRectangle(cornerRadius: 24))
+                            }.buttonStyle(.plain).accessibilityLabel("Call \(person.name), \(person.role.title)")
                         }
                     }
-                }
-            }.navigationTitle("Get support").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+                    Divider().padding(.top, 8)
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Emergency").font(.title2.bold())
+                        Button {
+                            if let url = URL(string: "tel:+358925250111?oai_link_source=model_response_hotline") { openURL(url) }
+                        } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: "phone.circle.fill").font(.title)
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text("MIELI Crisis Helpline").font(.headline)
+                                    Text("09 2525 0111").monospacedDigit()
+                                    Text("Confidential phone support, 24/7").font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(.white, in: RoundedRectangle(cornerRadius: 20))
+                        }.buttonStyle(.plain).accessibilityIdentifier("mieli-call")
+                        Link("About the helpline", destination: URL(string: "https://mieli.fi/tukea-ja-apua/kriisipuhelin?oai_link_source=model_response_hotline")!).font(.footnote)
+                    }
+                }.padding(20)
+            }.background(EverydayStyle.paper).navigationTitle("Get support").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
     }
 }

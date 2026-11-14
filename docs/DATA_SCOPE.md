@@ -100,3 +100,7 @@ Käyttäjälle näkyy esimerkiksi: "Sykkeesi hidastui 6 bpm neljässä viidestä
 - **Ouran ja WHOOPin HRV:** kirjoittavatko ne HRV:n `SDNN`-tyyppiin, ja onko arvo silloin oikeasti RMSSD-tyyppinen?
 - **Datatiedostojen suojaus:** käytetään `completeUntilFirstUserAuthentication`, ei `complete`. Muuten yöllinen laskenta lukitulla laitteella epäonnistuu.
 - **Lähdeviitteet:** Stamatis 2024, Matcham 2024, Hernandez 2025 ja Zhang 2022 tarkistetaan alkuperäisistä.
+
+## Beside demo scope update, 14 November 2026
+
+The user explicitly requested the following additions for the demo: logged dietary energy, water, protein, carbohydrates and total fat, plus existing State of Mind, mindful minutes and PHQ-9/GAD-7 results. The active interface requests these read-only and displays them as context, separated from scoring and automatic contact rules. Missing records remain unknown; no meal count or diagnosis is inferred. The exact active read allow-list is documented in HEALTHKIT_DATA.md. This update supersedes earlier exclusions only for these explicitly named types.

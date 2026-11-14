@@ -67,6 +67,7 @@ nonisolated enum F {
     static let deepMin = "deepMin", remMin = "remMin", coreMin = "coreMin", sleepEfficiency = "sleepEfficiency"
     static let timeZone = "timeZone"
     // Other HealthKit
+    static let dietaryEnergy = "dietaryEnergy", dietaryWater = "dietaryWater", dietaryProtein = "dietaryProtein", dietaryCarbs = "dietaryCarbs", dietaryFat = "dietaryFat"
     static let mindfulMin = "mindfulMin"
     static let workoutCount = "workoutCount", workoutMin = "workoutMin", workoutTypes = "workoutTypes"
     static let hrHighEvents = "hrHighEvents", hrLowEvents = "hrLowEvents", irregularRhythmEvents = "irregularRhythmEvents"
@@ -139,6 +140,12 @@ nonisolated enum FeatureCatalog {
         h(F.remMin, "REM sleep", .watch, .p1, .minutes, "Shown only, not scored"),
         h(F.coreMin, "Core sleep", .watch, .p1, .minutes, "Shown only, not scored"),
         h(F.timeZone, "Time zone while asleep", .watch, .p0, .text, "Travel filter"),
+        // User-requested nutrition context. Logged values do not prove meal count or completeness.
+        h(F.dietaryEnergy, "Logged food energy", .manual, .p1, .integer("kcal")),
+        h(F.dietaryWater, "Logged water", .manual, .p1, .integer("mL")),
+        h(F.dietaryProtein, "Logged protein", .manual, .p1, .decimal(1, "g")),
+        h(F.dietaryCarbs, "Logged carbohydrates", .manual, .p1, .decimal(1, "g")),
+        h(F.dietaryFat, "Logged fat", .manual, .p1, .decimal(1, "g")),
         // Logged by the person in Health; shown, never scored
         h(F.mindfulMin, "Mindful minutes", .watch, .p0, .minutes),
         h(F.stateOfMindValence, "State of Mind, average", .manual, .p1, .decimal(2, ""), "Only if you already log it. iOS 18 and later"),

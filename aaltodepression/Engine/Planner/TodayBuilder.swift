@@ -42,7 +42,7 @@ nonisolated enum TodayBuilder {
                          asksAboutSocial: ctx.state.socialPlans.filter { $0.met == nil && $0.day < ctx.day && ctx.day - $0.day <= 3 }
                             .max { $0.day < $1.day },
                          upcomingPlans: ctx.state.socialPlans.filter { $0.day >= ctx.day }.sorted { $0.day < $1.day },
-                         reward: reward, insights: Insights.compute(state: ctx.state, table: ctx.table, through: ctx.day))
+                         reward: reward, insights: Insights.compute(state: ctx.state, table: ctx.table, through: ctx.day), reachOutPrompt: ReachOutRules.prompt(ctx))
     }
 
     /// Only the day's reward: the list without cards or insights (cheap, used for past rug rows).

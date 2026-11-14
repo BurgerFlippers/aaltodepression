@@ -68,3 +68,11 @@ Rewards: nothing is ever taken away. Data: only the agreed signals (docs/DATA_SC
 
 `Tools/engine-check.sh` compiles all of `Engine/` without SwiftUI and runs the demo scenarios.
 It must print `ALL CHECKS PASSED` before a backend commit.
+
+## User-led contact and Health context revision
+
+- `TodayPlan.reachOutPrompt` is an optional `ReachOutPrompt` (pillar, SupportTopic, contact, title and explanation). `ReachOutRules` requires two preceding full days with genuine Beside activity and an unmarked category, and honours current completion and dismissal. Silent days do not count; a default Medicine box does not establish medicine use.
+- `planner.dismissReachOutPrompt(_)` records Not now or a successful hand-off to Messages. It does not record a message sent or a category completed.
+- `PlannerSetup.supportPreferences` is optional and decodes older setups unchanged. Topics: groceries, pharmacy, cleaning and social. `HelpKind` has additive pharmacyRun and homeCleaning cases. `MessageTemplates.reachOut(topic:contact:)` supplies optional first-person drafts.
+- `planner.demonstrateAutomaticSupport(topic)` only operates when `isDemo`, preferences enable the topic and automatic demo, and the chosen contact is agreed and supports that kind. Existing send-window, frequency and cancellation rules apply. It creates local simulated outbox entries only.
+- `HealthKitSource.read(..., keys:)` accepts an optional read allow-list; omitting it preserves older callers. The active frontend passes its named Health scope and separates Nutrition/Mind context before calling the planner and StepEngine. See HEALTHKIT_DATA.md.

@@ -5,8 +5,16 @@ import Observation
 /// Planning, persistence, question interpretation and message rules remain in Backend / Planner.
 @MainActor @Observable
 final class BesidePresentation {
-    let backend: Backend
-    private let profileStore: EverydayStore
+    private(set) var backend: Backend
+    let liveBackend: Backend
+    private var sandbox: Backend?
+    private(set) var selectedDay: Day?
+    private(set) var boxes: [BesideHomeBox] = BesideHomeBox.allCases
+    private(set) var healthHistory: [StepDay] = []
+    private(set) var healthStatus: String?
+    private(set) var healthReadAt: Date?
+    private var demoEdits: [Int: [String: Double]] = [:]
+    let profileStore: EverydayStore
     private(set) var isRefreshing = false
     private var table = FeatureTable()
     private let defaults = UserDefaults.standard
@@ -14,7 +22,13 @@ final class BesidePresentation {
     init(profileStore: EverydayStore, backend: Backend = Backend()) {
         self.profileStore = profileStore
         self.backend = backend
-
+        self.liveBackend = backend
+        // Retire personal fields that the simplified onboarding no longer collects.
+        profileStore.state.profile.gender = "Prefer not to say"
+        profileStore.state.profile.age = ""
+        profileStore.state.profile.weight = ""
+        profileStore.state.profile.height = ""
+        if let data = defaults.data(forKey: "beside.home.boxes"), let stored = try? JSONDecoder().decode([BesideHomeBox].self, from: data) { boxes = stored }
     }
 
     var setupSignature: String {
@@ -26,7 +40,7 @@ final class BesidePresentation {
     }
 
     func syncSetup() {
-        guard !backend.isDemo else { return }
+        let backend = liveBackend
         let p = profileStore.state.profile
         var setup = backend.planner.setup
         let wasSetUp = backend.planner.isSetUp
@@ -52,18 +66,11 @@ final class BesidePresentation {
         }
         defaults.set(Array(mappedIDs), forKey: "beside.backend.managedContacts")
         // Importing an address-book entry or UI draft never grants permission to send automatic messages.
-        if !wasSetUp { setup.helpConsent = .askEachTime }
-        let medicationID = "beside-profile-medication"
-        if p.usesMedication {
-            let medication = Medication(id: medicationID, name: "Your medication", times: [p.medicationHour * 60 + (p.medicationMinute ?? 0)])
-            if let i = setup.medications.firstIndex(where: { $0.id == medicationID }) { setup.medications[i] = medication }
-            else if setup.medications.isEmpty { setup.medications.append(medication) }
-        } else { setup.medications.removeAll { $0.id == medicationID } }
+        setup.helpConsent = .askEachTime
         if setup != backend.planner.setup { backend.planner.updateSetup(setup) }
     }
 
     func refresh(readSensors: Bool = true) async {
-        guard !backend.isDemo else { return }
         guard !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
@@ -72,46 +79,151 @@ final class BesidePresentation {
         if readSensors {
             await profileStore.refreshSensors()
             var fresh = FeatureTable()
+            // Read only what Health already permits. New unrequested types must not hide previously shared core readings.
+            // Queries never open a permission prompt; missing or denied types return no usable rows.
+            await liveBackend.permissions.refresh()
+            if HealthKitSource.isAvailable {
+                let keys = Set(BesideHealthMetric.allCases.map(\.key) + [F.activeHours, F.sleepEfficiency, F.awakeMin, F.deepMin, F.remMin, F.coreMin])
+                let read = await HealthKitSource().read(days: 120, latitude: 0, longitude: 0, keys: keys)
+                // No real location is available here: discard location-dependent daylight estimates.
+                for (key, series) in read.numbers where keys.contains(key) {
+                    for (day, value) in series { fresh.set(key, day, value) }
+                }
+                healthReadAt = Date()
+                healthStatus = fresh.keys.isEmpty ? "No shared Health readings yet. Check the types shared with Beside in Apple Health." : "Shared Health readings refreshed."
+            }
             if profileStore.state.motionEnabled == true {
                 fresh.merge(await MotionSource.read())
                 if let reading = profileStore.state.movementReading { fresh.set(F.steps, Day(reading.date), Double(reading.steps)) }
             }
-            if profileStore.state.healthSleepEnabled == true, let sleep = profileStore.state.sleepReading {
-                let day = Day(sleep.end)
-                fresh.set(F.sleepHours, day, Double(sleep.minutes) / 60)
-                let c = Calendar.current.dateComponents([.hour, .minute], from: sleep.start)
-                var bedtime = Double(c.hour ?? 0) + Double(c.minute ?? 0) / 60
-                if bedtime < 18 { bedtime += 24 }
-                fresh.set(F.bedtime, day, bedtime)
-                let wake = Calendar.current.dateComponents([.hour, .minute], from: sleep.end)
-                fresh.set(F.wake, day, Double(wake.hour ?? 0) + Double(wake.minute ?? 0) / 60)
+            if fresh.value(F.sleepHours, Day(Date())) == nil, profileStore.state.healthSleepEnabled == true, let sleep = profileStore.state.sleepReading {
+                fresh.set(F.sleepHours, Day(sleep.end), Double(sleep.minutes) / 60)
             }
             table = fresh
         }
-        let history = StepEngine.run(table: table, through: Day(Date()), homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
-        backend.refresh(table: table, history: history, locationEnabled: false)
-        migrateMarksIfNeeded()
+        let inputs = planningTable(table)
+        let history = StepEngine.run(table: inputs, through: Day(Date()), homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
+        liveBackend.refresh(table: inputs, history: history, locationEnabled: false)
+        if selectedDay != nil { refreshSandbox() } else { healthHistory = history }
+        if selectedDay == nil { migrateMarksIfNeeded() }
+    }
+
+    func connectHealth() async {
+        healthStatus = "Opening Apple Health permissions…"
+        do {
+            try await BesideHealthAccess.request()
+            defaults.set(true, forKey: "beside.health.connected")
+            await refresh()
+        } catch { healthStatus = "Health access couldn't be requested. Try again or check Settings." }
+    }
+
+    func saveSupportPreferences(_ preferences: SupportPreferences, contactAgreed: Bool) {
+        var setup = backend.planner.setup
+        setup.supportPreferences = preferences
+        setup.helpConsent = .askEachTime
+        if preferences.automaticDemo, contactAgreed, let index = setup.contacts.firstIndex(where: { $0.id == preferences.personID }) {
+            setup.contacts[index].agreed = true
+            setup.contacts[index].canHelpWith.formUnion(preferences.topics.map(\.helpKind))
+        }
+        backend.planner.updateSetup(setup)
+    }
+
+    func saveBoxes(_ value: [BesideHomeBox]) {
+        boxes = value
+        if let data = try? JSONEncoder().encode(value) { defaults.set(data, forKey: "beside.home.boxes") }
+    }
+
+    var isDemoMode: Bool { selectedDay != nil }
+    func selectDay(_ day: Day) {
+        guard day >= Day(Date()) - 120, day <= Day(Date()) else { return }
+        if sandbox == nil {
+            // Copy the real planner snapshot via its public store API. The copy is in memory;
+            // edits never reach the live planner or write back to Apple Health.
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("beside-preview-\(UUID().uuidString).json")
+            let temporary = PlannerStore(url: url)
+            temporary.save(liveBackend.planner.state)
+            sandbox = Backend(planner: Planner(store: temporary, isDemo: true))
+            temporary.erase()
+        }
+        selectedDay = day
+        backend = sandbox!
+        refreshSandbox()
+    }
+
+    func returnToLive() {
+        selectedDay = nil
+        backend = liveBackend
+        healthHistory = StepEngine.run(table: planningTable(table), through: Day(Date()), homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
+    }
+
+    /// Nutrition and Mind are user-requested context, not new automatic scoring inputs.
+    private func planningTable(_ source: FeatureTable) -> FeatureTable {
+        let contextKeys = Set(BesideHealthMetric.allCases.filter(\.isContextOnly).map(\.key))
+        var result = FeatureTable()
+        for (key, series) in source.numbers where !contextKeys.contains(key) {
+            for (day, value) in series { result.set(key, day, value) }
+        }
+        for (key, series) in source.texts { for (day, value) in series { result.setText(key, day, value) } }
+        return result
+    }
+    private var displayedTable: FeatureTable {
+        guard isDemoMode else { return table }
+        var result = table
+        for (jdn, edits) in demoEdits {
+            for (key, value) in edits { result.set(key, Day(jdn: jdn), value) }
+        }
+        return result
+    }
+    func reading(_ metric: BesideHealthMetric, on day: Day? = nil) -> Double? { displayedTable.value(metric.key, day ?? self.day) }
+    func isEdited(_ metric: BesideHealthMetric, on day: Day? = nil) -> Bool { isDemoMode && demoEdits[(day ?? self.day).jdn]?[metric.key] != nil }
+    func edit(_ metric: BesideHealthMetric, value: Double, on day: Day) {
+        guard isDemoMode, metric.range.contains(value), value.isFinite, !metric.wholeNumber || value.rounded() == value else { return }
+        demoEdits[day.jdn, default: [:]][metric.key] = value
+        refreshSandbox()
+    }
+    func resetEdits(on day: Day) { demoEdits.removeValue(forKey: day.jdn); refreshSandbox() }
+    var hasDemoEdits: Bool { isDemoMode && !demoEdits.isEmpty }
+    private func refreshSandbox() {
+        guard let selectedDay, let sandbox else { return }
+        let inputs = planningTable(displayedTable.truncated(through: selectedDay))
+        healthHistory = StepEngine.run(table: inputs, through: selectedDay, homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
+        sandbox.refresh(day: selectedDay, minutes: 18 * 60, table: inputs, history: healthHistory, locationEnabled: false)
+    }
+
+    // Live mode uses a complete day; the demo explicitly evaluates the selected day.
+    var signalDay: Day { !isDemoMode && day == Day(Date()) ? day - 1 : day }
+    var healthSignal: StepDay? { healthHistory.first { $0.day == signalDay } }
+    var signalHasBaseline: Bool { healthSignal?.baselineDay != nil }
+    var indicatorPosition: Double? {
+        if callCue != nil || healthSignal?.step == .reachOut { return 0.95 }
+        if let steadiness = healthSignal?.result.steadiness { return min(0.95, max(0.05, 1 - steadiness / 100)) }
+        guard let capacity = backend.planner.today?.capacity else { return nil }
+        switch capacity { case .good: return 0.08; case .ok: return 0.4; case .low: return 0.72 }
     }
 
     func handleNotification(_ action: PlannerNotificationAction, at date: Date) {
-        backend.planner.handle(action, deliveredAt: date)
+        liveBackend.planner.handle(action, deliveredAt: date)
     }
 
-    var day: Day { backend.isDemo ? backend.planner.currentDay : Day(Date()) }
+    var day: Day { selectedDay ?? Day(Date()) }
     var checkIn: CheckIn? { backend.planner.state.checkIn(on: day) }
 
     func item(for box: BesideHomeBox) -> PlanItem {
-        let pillar = box.pillar
-        if box != .eat && box != .connect, let item = backend.planner.today?.items.first(where: { $0.pillar == pillar }) { return item }
+        if box == .sleep {
+            var item = PlanItem(id: TodayBuilder.itemID(day, .sleep, "lastnight"), pillar: .sleep, title: "Last night's rest", detail: "Recorded sleep from Apple Health, or your own mark.", size: .tiny)
+            if (reading(.sleep) ?? 0) > 0 { item.status = .done; item.doneBy = .health }
+            return item
+        }
+        if box == .move, let item = backend.planner.today?.items.first(where: { $0.pillar == box.pillar }) { return item }
         if box == .eat, let item = backend.planner.today?.items.first(where: { $0.pillar == .food && $0.groceries == nil }) { return item }
-        let slug = box == .eat ? "meal" : box == .connect ? "connect" : box == .move ? "move" : "winddown"
-        return PlanItem(id: TodayBuilder.itemID(day, pillar, slug), pillar: pillar, title: box.title, size: .tiny)
+        let slug = box == .eat ? "meal" : box == .social ? "connect" : box == .move ? "move" : box == .sleep ? "winddown" : box.id
+        return PlanItem(id: TodayBuilder.itemID(day, box.pillar, slug), pillar: box.pillar, title: box.title, size: .tiny)
     }
 
     func isDone(_ box: BesideHomeBox) -> Bool {
         let item = item(for: box)
         if let mark = backend.planner.state.marks[item.id]?.status { return mark == .done }
-        if box == .connect { return backend.planner.today?.items.contains(where: { $0.pillar == .social && $0.status == .done }) == true }
+        if box == .social { return backend.planner.today?.items.contains(where: { $0.pillar == .social && $0.status == .done }) == true }
         return item.status == .done
     }
 
@@ -123,7 +235,7 @@ final class BesidePresentation {
         for card in backend.planner.today?.cards ?? [] {
             if case .callSignal(let suggestion) = card { return suggestion.contact.name }
         }
-        return backend.planner.outbox.first { $0.kind == .call && ($0.status == .pending || $0.status == .sent) && day - $0.day <= 3 }?.contactName
+        return backend.planner.outbox.first { $0.kind == .call && ($0.status == .pending || $0.status == .sent) && day - $0.day >= 0 && day - $0.day <= 3 }?.contactName
     }
 
     var winCount: Int {
@@ -142,13 +254,4 @@ final class BesidePresentation {
         }
         defaults.set(true, forKey: key)
     }
-}
-
-enum BesideHomeBox: String, CaseIterable, Identifiable {
-    case eat, move, sleep, connect
-    var id: String { rawValue }
-    var title: String { rawValue.capitalized }
-    var pillar: Pillar { switch self { case .eat: .food; case .move: .movement; case .sleep: .sleep; case .connect: .social } }
-    var legacyTask: EverydayTaskKind? { switch self { case .eat: .food; case .move: .movement; case .sleep: .sleep; case .connect: nil } }
-    var colorKind: EverydayTaskKind { switch self { case .eat: .food; case .move: .movement; case .sleep: .sleep; case .connect: .medication } }
 }

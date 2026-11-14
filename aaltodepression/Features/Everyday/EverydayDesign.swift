@@ -15,12 +15,13 @@ nonisolated enum EverydayStyle {
 }
 
 struct EverydayPrimaryButton: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.system(.body, design: .rounded, weight: .bold))
             .frame(maxWidth: .infinity, minHeight: 54)
             .foregroundStyle(.white)
             .background(EverydayStyle.ink, in: Capsule())
-            .opacity(configuration.isPressed ? 0.75 : 1)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
     }
 }
 

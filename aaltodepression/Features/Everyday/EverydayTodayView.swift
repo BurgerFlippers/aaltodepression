@@ -4,13 +4,15 @@ struct EverydayTodayView: View {
     @Environment(EverydayStore.self) private var store
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var editBoxes = false
     @State private var selectedBox: BesideHomeBox?
     @State private var showHelp = false
     @State private var showMessages = false
     @State private var showCheckIn = false
     @State private var showSafety = false
-    @State private var selectedSupport: ContactSuggestion?
-    @State private var showRequests = false
+    @State private var messagePersonID: String?
+    @State private var messageTopic: SupportTopic?
+    @State private var messagePrompt: ReachOutPrompt?
 
     var body: some View {
         NavigationStack {
@@ -18,19 +20,28 @@ struct EverydayTodayView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         let name = (presentation.backend.isDemo ? presentation.backend.planner.setup.personName : store.state.profile.name).trimmingCharacters(in: .whitespacesAndNewlines)
-                        Text(name.isEmpty ? "Hi there." : "Hi, \(name).")
-                            .font(.system(size: 30, weight: .bold, design: .rounded)).accessibilityAddTraits(.isHeader)
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(name.isEmpty ? "Hi there." : "Hi, \(name).")
+                                    .font(.system(size: 30, weight: .bold, design: .rounded)).accessibilityAddTraits(.isHeader)
+                                if presentation.isDemoMode { Text(presentation.day.start().formatted(date: .abbreviated, time: .omitted)).font(.subheadline).foregroundStyle(.secondary) }
+                            }
+                            Spacer()
+                            Button { editBoxes = true } label: { Image(systemName: "square.and.pencil").frame(width: 44, height: 44) }
+                                .accessibilityLabel("Edit your boxes")
+                        }
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2), spacing: 12) {
-                            ForEach(BesideHomeBox.allCases) { box in categoryBox(box) }
+                            ForEach(presentation.boxes) { box in categoryBox(box) }
                         }
                         if presentation.winCount > 0 { BesideWinsView() }
                         VStack(alignment: .leading, spacing: 14) {
-                            Text("Reminders").font(.title3.bold()).accessibilityAddTraits(.isHeader)
-                            reminderRow(title: presentation.checkIn == nil ? "How is everyday life going?" : "Your check-in", subtitle: presentation.checkIn == nil ? "A quick moment for yourself" : "Saved today · tap to update") { showCheckIn = true }
-                            if let card = presentation.backend.planner.today?.cards.first { plannerCard(card) }
-                            if !presentation.backend.planner.outbox.isEmpty {
-                                reminderRow(title: "Support requests", subtitle: "Prototype records and replies") { showRequests = true }
-                            }
+                            Text("Actions").font(.title3.bold()).accessibilityAddTraits(.isHeader)
+                            actionRow(title: presentation.checkIn == nil ? "How is everyday life going?" : "Your check-in", subtitle: presentation.checkIn == nil ? "A quick moment for yourself" : "Saved today · tap to update", color: EverydayStyle.peach) { showCheckIn = true }
+                            if let card = presentation.backend.planner.today?.cards.first, case .safetyCheck = card {
+                                plannerCard(card)
+                            } else if let prompt = presentation.backend.planner.today?.reachOutPrompt, presentation.boxes.contains(where: { $0.pillar == prompt.pillar }) {
+                                reachOutCard(prompt)
+                            } else if let card = presentation.backend.planner.today?.cards.first { plannerCard(card) }
                             if presentation.backend.planner.today?.asksAboutGroceries == true {
                                 VStack(alignment: .leading, spacing: 12) {
                                     Text(QuestionCatalog.groceries.prompt).font(.headline)
@@ -40,7 +51,7 @@ struct EverydayTodayView: View {
                                     }.controlSize(.large)
                                 }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(.white, in: RoundedRectangle(cornerRadius: 20))
                             }
-                            ForEach(presentation.backend.planner.today?.items.filter { $0.pillar == .meds || $0.pillar == .chores } ?? []) { item in
+                            ForEach(presentation.backend.planner.today?.items.filter { item in item.pillar == .meds && !presentation.boxes.contains(.medicine) || item.pillar == .chores && !presentation.boxes.contains(.cleaning) } ?? []) { item in
                                 Button { presentation.backend.planner.mark(item, item.status == .done ? .open : .done) } label: {
                                     HStack(spacing: 12) {
                                         Image(systemName: item.status == .done ? "checkmark.circle.fill" : "circle").font(.title3)
@@ -52,7 +63,7 @@ struct EverydayTodayView: View {
                                     }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(.white, in: RoundedRectangle(cornerRadius: 20))
                                 }.buttonStyle(.plain).accessibilityValue(item.status == .done ? "Done" : "Not done")
                             }
-                            reminderRow(title: "Send a message", subtitle: "Choose a few words, make them yours") { showMessages = true }
+                            actionRow(title: "Send a message", subtitle: "Choose a person and open Messages", color: EverydayStyle.lavender) { openMessages() }
                             if let social = presentation.backend.planner.today?.asksAboutSocial {
                                 VStack(alignment: .leading, spacing: 12) {
                                     Text(social.contactName.map { "Did you get to meet \($0)?" } ?? "Did you get to meet?").font(.headline)
@@ -72,15 +83,15 @@ struct EverydayTodayView: View {
                 ToolbarItem(placement: .principal) { Text("Beside").font(.title2.bold()) }
                 ToolbarItem(placement: .topBarTrailing) { Button("Support") { showHelp = true } }
             }
+            .sheet(isPresented: $editBoxes) { BesideEditBoxesView() }
             .sheet(isPresented: $showHelp) { EverydayHelpView() }
-            .sheet(isPresented: $showMessages) { EverydaySocialView() }
+            .sheet(isPresented: $showMessages) { EverydaySocialView(initialPersonID: messagePersonID, initialTopic: messageTopic, prompt: messagePrompt) }
             .sheet(isPresented: $showCheckIn) { BesideCheckInView() }
             .sheet(isPresented: $showSafety) { BesideSafetyView() }
-            .sheet(item: $selectedSupport) { suggestion in BesideSupportSuggestionView(suggestion: suggestion) }
-            .sheet(isPresented: $showRequests) { BesideSupportRequestsView() }
             .sheet(item: $selectedBox) { box in
                 if let task = box.legacyTask { EverydayTaskDetailView(task: task) }
-                else { EverydaySocialView() }
+                else if box == .social { EverydaySocialView() }
+                else { BesideBoxDetailsView(box: box) }
             }
         }
     }
@@ -88,31 +99,48 @@ struct EverydayTodayView: View {
         let done = presentation.isDone(box)
         return Button { presentation.toggle(box) } label: {
             HStack(spacing: 10) {
-                Text(box.title).font(.title3.bold())
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(box.title).font(.title3.bold()).lineLimit(1).minimumScaleFactor(0.8)
+                    Text(box.subtitle).font(.caption).foregroundStyle(EverydayStyle.ink.opacity(0.8)).lineLimit(1).minimumScaleFactor(0.8)
+                }
                 Spacer(minLength: 4)
                 Image(systemName: done ? "checkmark.circle.fill" : "circle").font(.title2)
             }.padding(18).frame(maxWidth: .infinity, minHeight: 88)
-                .background(EverydayStyle.color(box.colorKind), in: RoundedRectangle(cornerRadius: 20))
+                .background(box.color, in: RoundedRectangle(cornerRadius: 20))
                 .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(EverydayStyle.ink.opacity(done ? 0.35 : 0.08), lineWidth: done ? 2 : 1) }
                 .contentShape(RoundedRectangle(cornerRadius: 20))
-        }.buttonStyle(.plain).accessibilityLabel(box.title).accessibilityValue(done ? "Done" : "Not done")
+        }.buttonStyle(.plain).accessibilityLabel("\(box.title), \(box.subtitle)").accessibilityValue(done ? "Done" : "Not done")
             .accessibilityHint(done ? "Double-tap to undo" : "Double-tap to mark as done")
-            .accessibilityIdentifier("day-\(box.rawValue)")
-            .contextMenu { Button(box == .connect ? "Choose a message" : "Details and settings") { selectedBox = box } }
+            .accessibilityIdentifier("day-\(box.id)")
+            .contextMenu { Button(box == .social ? "Choose a message" : "Details and settings") { selectedBox = box } }
     }
-    private func reminderRow(title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+    private func actionRow(title: String, subtitle: String, color: Color = .white, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) { Text(title).font(.headline); Text(subtitle).font(.subheadline).foregroundStyle(.secondary) }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.caption.weight(.semibold))
-            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(.white, in: RoundedRectangle(cornerRadius: 20))
+            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(color, in: RoundedRectangle(cornerRadius: 20))
         }.buttonStyle(.plain)
+    }
+    private func openMessages(personID: String? = nil, topic: SupportTopic? = nil, prompt: ReachOutPrompt? = nil) {
+        messagePersonID = personID; messageTopic = topic; messagePrompt = prompt; showMessages = true
+    }
+    private func reachOutCard(_ prompt: ReachOutPrompt) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(prompt.title).font(.headline)
+            Text("You can ask someone you know.").font(.subheadline).foregroundStyle(.secondary)
+            HStack {
+                Button("Reach out") { openMessages(personID: prompt.contact?.id, topic: prompt.topic, prompt: prompt) }
+                    .buttonStyle(.borderedProminent).foregroundStyle(.white)
+                Button("Not now") { presentation.backend.planner.dismissReachOutPrompt(prompt) }.buttonStyle(.bordered)
+            }.controlSize(.large)
+        }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(EverydayStyle.mint, in: RoundedRectangle(cornerRadius: 20))
     }
     @ViewBuilder private func plannerCard(_ card: Card) -> some View {
         switch card {
         case .social(let suggestion):
-            reminderRow(title: "Time with \(suggestion.contact?.name ?? "someone")?", subtitle: suggestion.activity.capitalized) { showMessages = true }
+            actionRow(title: "Time with \(suggestion.contact?.name ?? "someone")?", subtitle: suggestion.activity.capitalized, color: EverydayStyle.mint) { openMessages(personID: suggestion.contact?.id, topic: .social) }
         case .clinic(let nudge):
             VStack(alignment: .leading, spacing: 10) {
                 Text(nudge.reason).font(.headline)
@@ -120,9 +148,9 @@ struct EverydayTodayView: View {
                 else { Text("You can contact your care team.").font(.subheadline) }
             }.padding(18).background(EverydayStyle.peach, in: RoundedRectangle(cornerRadius: 20))
         case .safetyCheck:
-            reminderRow(title: "A moment to check in", subtitle: "A few questions, at your own pace") { if SafetyCopy.reviewedByClinician { presentation.backend.planner.startSafety(); showSafety = true } else { showHelp = true } }
+            actionRow(title: "A moment to check in", subtitle: "A few questions, at your own pace") { if SafetyCopy.reviewedByClinician { presentation.backend.planner.startSafety(); showSafety = true } else { showHelp = true } }
         case .askForHelp(let suggestion), .callSignal(let suggestion):
-            reminderRow(title: "Support from \(suggestion.contact.name)", subtitle: "Review a practical support suggestion") { selectedSupport = suggestion }
+            actionRow(title: "Reach out to \(suggestion.contact.name)", subtitle: "A little practical support, on your terms", color: EverydayStyle.mint) { openMessages(personID: suggestion.contact.id, topic: suggestion.kind == .pharmacyRun ? .pharmacy : suggestion.kind == .homeCleaning ? .cleaning : suggestion.kind == .groceryRun || suggestion.kind == .inviteToEat || suggestion.kind == .shopTogether ? .groceries : .social) }
         }
     }
 }
@@ -148,7 +176,7 @@ struct EverydayTaskDetailView: View {
                     }
                     if task == .sleep, let sleep = presentation.backend.tracking.sleep {
                         LabeledContent("Recorded sleep", value: sleep.duration.text)
-                        Text("Recorded sleep and your evening wind-down are separate. The circle marks your wind-down.").font(.footnote).foregroundStyle(.secondary)
+                        Text("The circle records last night’s rest. You can correct it yourself.").font(.footnote).foregroundStyle(.secondary)
                     }
                     if task == .movement || task == .sleep {
                         Button(task == .movement ? "Movement settings" : "Sleep settings") { showSensors = true }

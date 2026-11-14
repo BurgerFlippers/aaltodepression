@@ -144,17 +144,6 @@ struct EverydayNetworkView: View {
     var body: some View {
         Form {
             Section("Your people") { EverydayContactsEditor() }
-            Section("Choose a role") {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Loved one").font(.headline)
-                    Text("Practical help with food, groceries and home.").font(.subheadline).foregroundStyle(.secondary)
-                }.padding(.vertical, 4)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Friend").font(.headline)
-                    Text("Company for walks, coffee and everyday moments.").font(.subheadline).foregroundStyle(.secondary)
-                }.padding(.vertical, 4)
-            }
-            Section { NavigationLink("Background support") { EverydayBackgroundSupportView() } }
         }.navigationTitle("Your people").navigationBarTitleDisplayMode(.inline)
     }
 }

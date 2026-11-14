@@ -1,0 +1,29 @@
+import Foundation
+
+/// Practical help the person chooses once. These are not diagnoses or inferred needs.
+nonisolated enum SupportTopic: String, Codable, Sendable, CaseIterable, Identifiable {
+    case groceries, pharmacy, cleaning, social
+    var id: String { rawValue }
+    var title: String {
+        switch self { case .groceries: "Grocery shopping"; case .pharmacy: "Pharmacy visits"; case .cleaning: "Home cleaning"; case .social: "Social contact" }
+    }
+    var helpKind: HelpKind {
+        switch self { case .groceries: .groceryRun; case .pharmacy: .pharmacyRun; case .cleaning: .homeCleaning; case .social: .doSomethingFun }
+    }
+}
+
+nonisolated struct SupportPreferences: Codable, Sendable, Equatable {
+    var personID: String = ""
+    var topics: Set<SupportTopic> = Set(SupportTopic.allCases)
+    /// Used by the explicit automatic-message demo, not by missing-checkmark rules.
+    var automaticDemo = false
+}
+
+nonisolated struct ReachOutPrompt: Sendable, Identifiable, Equatable {
+    let pillar: Pillar
+    let topic: SupportTopic
+    let contact: Contact?
+    let title: String
+    let explanation: String
+    var id: String { "reachout|\(pillar.rawValue)" }
+}

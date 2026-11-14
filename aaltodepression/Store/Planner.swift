@@ -250,6 +250,24 @@ final class Planner {
         save()
     }
 
+    func dismissReachOutPrompt(_ prompt: ReachOutPrompt) {
+        syncClock()
+        state.dismissedCards[prompt.id] = day.jdn
+        rebuild(autoSend: false)
+        save()
+    }
+
+    /// Advances the automatic-request scene in a sandbox. Never operates on the live planner.
+    @discardableResult
+    func demonstrateAutomaticSupport(_ topic: SupportTopic) -> OutgoingMessage? {
+        guard isDemo, let suggestion = ReachOutRules.automaticDemo(topic, ctx: context) else { return nil }
+        let message = state.queue(suggestion, now: minutes, at: now, simulateReply: true)
+        if let message { state.confirm(messageID: message.id, now: minutes, simulateReply: true) }
+        rebuild(autoSend: false)
+        save()
+        return state.outbox.first { $0.id == message?.id }
+    }
+
     // MARK: - Safety
 
     /// Opens the safety questions (from the safety card).

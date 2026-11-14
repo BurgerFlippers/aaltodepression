@@ -41,7 +41,7 @@ nonisolated enum Feeling: String, Codable, Sendable, CaseIterable, Identifiable 
     }
 }
 
-/// "How much do you have in you today?"
+/// "How is your energy today?"
 nonisolated enum Energy: Int, Codable, Sendable, CaseIterable, Comparable, Identifiable {
     case low = 1, some = 2, plenty = 3
 

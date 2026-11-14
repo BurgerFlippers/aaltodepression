@@ -1,110 +1,61 @@
 import SwiftUI
 
-/// A judging overlay of the actual backend. Visibility never changes data or planner state.
+/// A judging overlay. The live Health history and edited demo copy are explicitly distinguished.
 struct BesideDemoBar: View {
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var details = false
-    private var hasSignals: Bool {
-        presentation.checkIn != nil || presentation.backend.tracking.activity?.stepsSoFar.value != nil || presentation.backend.tracking.sleep?.duration.value != nil
-    }
     private var dayLabel: String {
-        guard presentation.backend.planner.today != nil else { return "Loading your current plan" }
-        guard hasSignals else { return "Current plan · provisional, limited data" }
-        switch presentation.backend.planner.today?.capacity {
-        case .low: return "Plan: a lighter day"
-        case .good: return "Plan: room for a little more"
-        default: return "Plan: an everyday pace"
-        }
-    }
-    // Display positions summarize existing backend categories; no new health score is calculated.
-    private var indicatorPosition: CGFloat? {
-        if presentation.callCue != nil { return 0.95 }
-        guard let capacity = presentation.backend.planner.today?.capacity else { return nil }
-        switch capacity {
-        case .good: return 0.08
-        case .ok: return 0.40
-        case .low: return 0.72
+        if let contact = presentation.callCue { return "A call from \(contact) is suggested" }
+        switch presentation.healthSignal?.step {
+        case .reachOut: return "A support check is suggested"
+        case .nudge: return "A small step could help today"
+        default: return presentation.signalHasBaseline ? "Daily signals compared with your usual" : "Current plan · learning your usual"
         }
     }
     var body: some View {
-        let cue = presentation.callCue
-        Button { details = true } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("DEMOBAR · LIVE DATA").font(.caption2.bold()).tracking(0.6)
-                        Text(cue.map { "A call from \($0) is suggested" } ?? dayLabel)
-                            .font(.caption).fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 7) {
+            Button { details = true } label: {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(presentation.isDemoMode ? "DEMOBAR · DEMO COPY" : "DEMOBAR · LIVE HEALTH").font(.caption2.bold()).tracking(0.6)
+                        Spacer()
+                        Image(systemName: "slider.horizontal.3")
                     }
-                    Spacer(minLength: 0)
-                    Image(systemName: cue == nil ? "info.circle" : "phone.fill").font(.body)
+                    Text(dayLabel).font(.caption).fixedSize(horizontal: false, vertical: true)
+                    GeometryReader { geometry in
+                        Capsule().fill(LinearGradient(colors: [
+                            Color(red: 0.77, green: 0.91, blue: 0.68), Color(red: 0.95, green: 0.83, blue: 0.36),
+                            Color(red: 0.91, green: 0.41, blue: 0.23), Color(red: 0.49, green: 0.06, blue: 0.13)
+                        ], startPoint: .leading, endPoint: .trailing)).frame(height: 8).frame(height: 18)
+                        if let position = presentation.indicatorPosition {
+                            Circle().fill(.white)
+                                .overlay { Circle().strokeBorder(EverydayStyle.ink, style: StrokeStyle(lineWidth: 3, dash: presentation.signalHasBaseline ? [] : [3, 2])) }
+                                .frame(width: 18, height: 18)
+                                .offset(x: (geometry.size.width - 18) * position)
+                        }
+                    }.frame(height: 18).accessibilityHidden(true)
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: presentation.indicatorPosition)
+                    HStack { Text("Your usual"); Spacer(); Text("More support") }.font(.caption2).foregroundStyle(.secondary)
+                }.contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityHint("Opens day selection and editable demo statistics")
+            HStack(spacing: 5) {
+                Button { presentation.selectDay(presentation.day - 1) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 32) }
+                    .disabled(presentation.day <= Day(Date()) - 120).accessibilityLabel("Previous day")
+                ForEach(Day.range(max(presentation.day - 4, Day(Date()) - 120), presentation.day + 1), id: \.jdn) { day in
+                    Button { presentation.selectDay(day) } label: {
+                        Text(day.start().formatted(.dateTime.day().month(.abbreviated))).font(.caption2.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 32)
+                            .background(day == presentation.day ? EverydayStyle.mint : .clear, in: Capsule())
+                    }.buttonStyle(.plain).accessibilityAddTraits(day == presentation.day ? .isSelected : [])
                 }
-                GeometryReader { geometry in
-                    Capsule()
-                        .fill(LinearGradient(colors: [
-                            Color(red: 0.77, green: 0.91, blue: 0.68),
-                            Color(red: 0.95, green: 0.83, blue: 0.36),
-                            Color(red: 0.91, green: 0.41, blue: 0.23),
-                            Color(red: 0.49, green: 0.06, blue: 0.13)
-                        ], startPoint: .leading, endPoint: .trailing))
-                        .frame(height: 10)
-                        .frame(height: 20)
-                    if let position = indicatorPosition {
-                        Circle().fill(.white)
-                            .overlay { Circle().strokeBorder(EverydayStyle.ink, style: StrokeStyle(lineWidth: 3, dash: hasSignals || cue != nil ? [] : [3, 2])) }
-                            .frame(width: 20, height: 20)
-                            .shadow(color: .black.opacity(0.14), radius: 2, y: 1)
-                            .offset(x: (geometry.size.width - 20) * position)
-                    }
-                }.frame(height: 20)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.35), value: indicatorPosition)
-                    .accessibilityHidden(true)
-                HStack {
-                    Text("More capacity")
-                    Spacer()
-                    Text("More support")
-                }.font(.caption2).foregroundStyle(.secondary)
-            }.foregroundStyle(EverydayStyle.ink).padding(.horizontal, 20).padding(.vertical, 10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(EverydayStyle.paper)
-                .contentShape(Rectangle())
-        }.buttonStyle(.plain).overlay(alignment: .bottom) { Divider() }
-            .sheet(isPresented: $details) { BesideLiveSignalsView() }
-    }
-
-}
-
-struct BesideLiveSignalsView: View {
-    @Environment(BesidePresentation.self) private var presentation
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("1 · Actual inputs") {
-                    LabeledContent("Check-in", value: presentation.checkIn == nil ? "Not answered today" : "Answered today")
-                    if let checkIn = presentation.checkIn {
-                        LabeledContent("Energy", value: checkIn.energy.title)
-                    }
-                    LabeledContent("iPhone steps", value: presentation.backend.tracking.activity?.stepsSoFar.text ?? "Not available")
-                    LabeledContent("Recorded sleep", value: presentation.backend.tracking.sleep?.duration.text ?? "Not available")
-                }
-                Section("2 · Backend day plan") {
-                    Text(presentation.backend.planner.today?.headline ?? "Waiting for the planner")
-                    Text("The gradient marker shows the current backend plan capacity and call suggestions. Without a check-in or sensor readings, the dashed marker shows the provisional plan based on limited data.").font(.footnote).foregroundStyle(.secondary)
-                    LabeledContent("Things marked done", value: "\(presentation.winCount)")
-                }
-                Section {
-                    if let person = presentation.callCue {
-                        Label("A call from \(person) is suggested", systemImage: "phone.fill")
-                    } else { Text("No call suggestion from the backend right now.") }
-                    let agreed = presentation.backend.planner.setup.contacts.filter { $0.agreed && $0.canHelpWith.contains(.call) }
-                    LabeledContent("Agreed contacts for calls", value: "\(agreed.count)")
-                    if agreed.isEmpty { Text("No contact has been agreed for call suggestions. This does not mean support is unnecessary.").font(.footnote).foregroundStyle(.secondary) }
-                } header: { Text("3 · Contact suggestion") } footer: { Text("This overlay explains the real data flow to judges. It does not generate sample data. The current backend records support requests locally; it does not place calls or send automatic messages.") }
-            }.navigationTitle("Live data flow").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
+                Button { presentation.selectDay(presentation.day + 1) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 32) }
+                    .disabled(presentation.day >= Day(Date())).accessibilityLabel("Next day")
+            }
+        }.foregroundStyle(EverydayStyle.ink).padding(.horizontal, 16).padding(.vertical, 8)
+            .frame(maxWidth: .infinity).background(EverydayStyle.paper)
+            .overlay(alignment: .bottom) { Divider() }
+            .sheet(isPresented: $details) { BesideDemoControlsView() }
     }
 }
 

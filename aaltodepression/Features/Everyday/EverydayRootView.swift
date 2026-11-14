@@ -2,30 +2,37 @@ import SwiftUI
 import UserNotifications
 
 struct EverydayRootView: View {
-    @State private var store: EverydayStore
-    @State private var presentation: BesidePresentation
+    @State private var presentation: BesidePresentation?
+    var body: some View {
+        Group {
+            if let presentation { EverydaySessionView(store: presentation.profileStore, presentation: presentation) }
+            else { ProgressView("Opening Beside…") }
+        }.task {
+            if presentation == nil { presentation = BesidePresentation(profileStore: EverydayStore()) }
+        }
+    }
+}
+
+private struct EverydaySessionView: View {
+    @Bindable var store: EverydayStore
+    @Bindable var presentation: BesidePresentation
     #if DEBUG
     @AppStorage("beside.demobar.visible") private var showDemobar = true
     #else
     @AppStorage("beside.demobar.visible") private var showDemobar = false
     #endif
 
-    init() {
-        let profile = EverydayStore()
-        _store = State(initialValue: profile)
-        _presentation = State(initialValue: BesidePresentation(profileStore: profile))
-    }
     @Environment(\.scenePhase) private var phase
     var body: some View {
         VStack(spacing: 0) {
             if showDemobar && store.state.completedSetup { BesideDemoBar() }
             Group {
-            if store.state.completedSetup {
-                TabView {
-                    EverydayTodayView().tabItem { Label("Today", systemImage: "sun.max") }
-                    EverydayProfileView().tabItem { Label("You", systemImage: "person.crop.circle") }
-                }
-            } else { EverydayOnboardingView() }
+                if store.state.completedSetup {
+                    TabView {
+                        EverydayTodayView().tabItem { Label("Today", systemImage: "sun.max") }
+                        EverydayProfileView().tabItem { Label("You", systemImage: "person.crop.circle") }
+                    }
+                } else { EverydayOnboardingView() }
             }
         }
         .fontDesign(.rounded)

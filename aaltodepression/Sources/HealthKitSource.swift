@@ -21,6 +21,11 @@ nonisolated struct HealthKitSource: Sendable {
         let perMin = HKUnit.count().unitDivided(by: .minute())
         let mps = HKUnit.meter().unitDivided(by: .second())
         return [
+            .init(key: F.dietaryEnergy, id: .dietaryEnergyConsumed, options: .cumulativeSum, unit: .kilocalorie()),
+            .init(key: F.dietaryWater, id: .dietaryWater, options: .cumulativeSum, unit: .literUnit(with: .milli)),
+            .init(key: F.dietaryProtein, id: .dietaryProtein, options: .cumulativeSum, unit: .gram()),
+            .init(key: F.dietaryCarbs, id: .dietaryCarbohydrates, options: .cumulativeSum, unit: .gram()),
+            .init(key: F.dietaryFat, id: .dietaryFatTotal, options: .cumulativeSum, unit: .gram()),
             .init(key: F.steps, id: .stepCount, options: .cumulativeSum, unit: .count()),
             .init(key: F.walkingSpeed, id: .walkingSpeed, options: .discreteAverage, unit: mps),
             .init(key: F.exerciseMin, id: .appleExerciseTime, options: .cumulativeSum, unit: .minute()),
@@ -75,23 +80,38 @@ nonisolated struct HealthKitSource: Sendable {
     }
 
     /// Reads everything concurrently. Returns the table plus how many days each feature returned.
-    func read(days: Int = 365, latitude: Double, longitude: Double, calendar: Calendar = .current) async -> FeatureTable {
+    func read(days: Int = 365, latitude: Double, longitude: Double, calendar: Calendar = .current, keys: Set<String>? = nil) async -> FeatureTable {
         let end = Date()
         let start = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -days, to: end)!)
+        func wants(_ key: String) -> Bool { keys?.contains(key) ?? true }
         return await withTaskGroup(of: FeatureTable.self) { group in
-            for spec in Self.quantitySpecs {
+            for spec in Self.quantitySpecs where wants(spec.key) {
                 group.addTask { (try? await quantity(spec, from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             }
-            group.addTask { (try? await sleep(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
-            group.addTask { (try? await mindful(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
-            group.addTask { (try? await workouts(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
-            group.addTask { (try? await nightListening(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
-            group.addTask { (try? await hourlySteps(from: start, to: end, latitude: latitude, longitude: longitude, calendar: calendar)) ?? FeatureTable() }
-            if #available(iOS 18.0, *) {
-                group.addTask { (try? await stateOfMind(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
-                group.addTask { (try? await assessments(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
+            if [F.sleepHours, F.bedtime, F.wake, F.awakeMin, F.deepMin, F.remMin, F.coreMin, F.sleepEfficiency].contains(where: wants) {
+                group.addTask { (try? await sleep(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             }
-            if #available(iOS 26.0, *) {
+            if wants(F.mindfulMin) {
+                group.addTask { (try? await mindful(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
+            }
+            if wants(F.workoutMin) {
+                group.addTask { (try? await workouts(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
+            }
+            if wants(F.nightListeningMin) {
+                group.addTask { (try? await nightListening(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
+            }
+            if wants(F.activeHours) || wants(F.daylightWalkMin) {
+                group.addTask { (try? await hourlySteps(from: start, to: end, latitude: latitude, longitude: longitude, calendar: calendar)) ?? FeatureTable() }
+            }
+            if #available(iOS 18.0, *) {
+                if wants(F.stateOfMindValence) || wants(F.stateOfMindCount) {
+                    group.addTask { (try? await stateOfMind(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
+                }
+                if wants(F.phq9) || wants(F.gad7) {
+                    group.addTask { (try? await assessments(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
+                }
+            }
+            if #available(iOS 26.0, *), wants(F.medsLogged) || wants(F.medsSkipped) {
                 group.addTask { (try? await medications(from: start, to: end, calendar: calendar)) ?? FeatureTable() }
             }
             var all = FeatureTable()
@@ -266,10 +286,10 @@ nonisolated struct HealthKitSource: Sendable {
     private func assessments(from: Date, to: Date, calendar: Calendar) async throws -> FeatureTable {
         let p = HKQuery.predicateForSamples(withStart: from, end: to)
         var t = FeatureTable()
-        for s in try await HKSampleQueryDescriptor(predicates: [.phq9Assessment(p)], sortDescriptors: []).result(for: store) {
+        for s in try await HKSampleQueryDescriptor(predicates: [.phq9Assessment(p)], sortDescriptors: [SortDescriptor(\.startDate)]).result(for: store) {
             t.set(F.phq9, Day(s.startDate, calendar: calendar), Double(s.score))
         }
-        for s in try await HKSampleQueryDescriptor(predicates: [.gad7Assessment(p)], sortDescriptors: []).result(for: store) {
+        for s in try await HKSampleQueryDescriptor(predicates: [.gad7Assessment(p)], sortDescriptors: [SortDescriptor(\.startDate)]).result(for: store) {
             t.set(F.gad7, Day(s.startDate, calendar: calendar), Double(s.score))
         }
         return t
