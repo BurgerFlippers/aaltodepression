@@ -43,10 +43,10 @@ struct EverydayHeading: View {
     }
 }
 
-/// The same Beside mark used on the Home Screen, without a separate mascot.
+/// The same MindMaintainer mark used on the Home Screen, without a separate mascot.
 struct BesideLogoView: View {
     var body: some View {
-        Image("BesideMark").resizable().scaledToFit().saturation(0).colorMultiply(EverydayStyle.accent)
+        Image("MindLogo").resizable().scaledToFit()
             .clipShape(RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
             .accessibilityHidden(true)
     }
@@ -79,6 +79,7 @@ struct BalanceScale: View {
 /// One header for every tab: the page title sits on the toolbar row, left, beside the page's buttons.
 private struct MindHeader: ViewModifier {
     let title: String
+    var onTripleTap: (() -> Void)?
     func body(content: Content) -> some View {
         content
             .navigationTitle(title)
@@ -92,11 +93,15 @@ private struct MindHeader: ViewModifier {
                 }
             }
     }
-    private var headerText: some View {
-        Text(title).font(.title.bold()).foregroundStyle(.primary).fixedSize().accessibilityAddTraits(.isHeader)
+    @ViewBuilder private var headerText: some View {
+        let text = Text(title).font(.title.bold()).foregroundStyle(.primary).fixedSize().accessibilityAddTraits(.isHeader)
+        if let onTripleTap {
+            text.contentShape(Rectangle()).onTapGesture(count: 3, perform: onTripleTap)
+                .accessibilityAction(named: "Advanced demo controls", onTripleTap)
+        } else { text }
     }
 }
 
 extension View {
-    func mindHeader(_ title: String) -> some View { modifier(MindHeader(title: title)) }
+    func mindHeader(_ title: String, onTripleTap: (() -> Void)? = nil) -> some View { modifier(MindHeader(title: title, onTripleTap: onTripleTap)) }
 }

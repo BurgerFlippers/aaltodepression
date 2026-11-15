@@ -15,7 +15,7 @@ final class EverydaySensors {
         guard requestAccess || status == .authorized else { return nil }
         let start = Calendar.current.startOfDay(for: Date())
         return try await withCheckedThrowingContinuation { continuation in
-            pedometer.queryPedometerData(from: start, to: Date()) { data, error in
+            pedometer.queryPedometerData(from: start, to: Date()) { @Sendable data, error in
                 if let error { continuation.resume(throwing: error) }
                 else if let data { continuation.resume(returning: EverydayMovementReading(date: data.endDate, steps: data.numberOfSteps.intValue)) }
                 else { continuation.resume(returning: nil) }
@@ -34,7 +34,7 @@ final class EverydaySensors {
         let start = Calendar.current.startOfDay(for: Date()).addingTimeInterval(-12 * 3600)
         let predicate = HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
         return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
+            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { @Sendable _, samples, error in
                 if let error { continuation.resume(throwing: error); return }
                 let asleep = Set([HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue, HKCategoryValueSleepAnalysis.asleepCore.rawValue, HKCategoryValueSleepAnalysis.asleepDeep.rawValue, HKCategoryValueSleepAnalysis.asleepREM.rawValue])
                 let intervals = (samples as? [HKCategorySample] ?? []).filter { asleep.contains($0.value) }.map { ($0.startDate, $0.endDate) }.sorted { $0.0 < $1.0 }

@@ -18,6 +18,19 @@ func sidequestChecks() -> [String] {
         SidequestRules.make(day: day, signal: signal(scores), hasMedication: false)
     }
     let fallback = SidequestRules.make(day: day, signal: nil, hasMedication: false)
+    // Demo preview: every score category has at least two tasks with distinct normal and easy versions,
+    // and the lowest category drives the choice.
+    for kind in ScoreKind.allCases {
+        let pool = SidequestDemoRules.pools[kind] ?? []
+        check(pool.count >= 3 && pool.allSatisfy { $0.regular.title != $0.smaller.title }, "demo pool \(kind.rawValue) has normal and easy tasks")
+        var scores = Dictionary(uniqueKeysWithValues: ScoreKind.allCases.map { ($0, 90.0) })
+        scores[kind] = 30
+        let preview = SidequestDemoRules.preview(day: day, scores: scores)
+        check(preview.focus == [kind] && preview.options.count == 3 && Set(preview.options.map(\.id)).count == 3 && preview.easy,
+              "demo preview: low \(kind.rawValue) gives three easy \(kind.rawValue) tasks")
+    }
+    let demoMix = SidequestDemoRules.preview(day: day, scores: [.sleep: 90, .rhythm: 90, .movement: 90, .daylight: 90, .places: 60, .body: 70])
+    check(demoMix.focus == [.places, .body] && !demoMix.easy && demoMix.kinds.values.filter { $0 == .body }.count == 1, "demo preview: two-plus-one mix with normal tasks at 50 or above")
     check(fallback.options.count == 3 && Set(fallback.options.map(\.id)).count == 3, "exactly three distinct fallback options")
     check(fallback.signalDay == nil && !fallback.options.contains { $0.category == .medicine }, "missing data stays unknown; no assumed medication use")
     let sleep = offer([.sleep: 35, .movement: 90])

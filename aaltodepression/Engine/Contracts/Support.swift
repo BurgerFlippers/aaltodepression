@@ -17,6 +17,24 @@ nonisolated struct SupportPreferences: Codable, Sendable, Equatable {
     var topics: Set<SupportTopic> = Set(SupportTopic.allCases)
     /// Used by the explicit automatic-message demo, not by missing-checkmark rules.
     var automaticDemo = false
+    /// Who could help with each topic, keyed by `SupportTopic.rawValue`. Falls back to `personID`.
+    var topicPeople: [String: String] = [:]
+    /// Topics whose helper the person picked themselves. Other topics follow the defaults as people change.
+    var pickedTopics: Set<String> = []
+
+    func person(for topic: SupportTopic) -> String { topicPeople[topic.rawValue] ?? personID }
+}
+
+nonisolated extension SupportPreferences {
+    // Older saved preferences have no `topicPeople` or `pickedTopics`.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        personID = try c.decodeIfPresent(String.self, forKey: .personID) ?? ""
+        topics = try c.decodeIfPresent(Set<SupportTopic>.self, forKey: .topics) ?? Set(SupportTopic.allCases)
+        automaticDemo = try c.decodeIfPresent(Bool.self, forKey: .automaticDemo) ?? false
+        topicPeople = try c.decodeIfPresent([String: String].self, forKey: .topicPeople) ?? [:]
+        pickedTopics = try c.decodeIfPresent(Set<String>.self, forKey: .pickedTopics) ?? []
+    }
 }
 
 nonisolated struct ReachOutPrompt: Sendable, Identifiable, Equatable {

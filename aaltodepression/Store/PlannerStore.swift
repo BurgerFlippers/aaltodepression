@@ -1,7 +1,7 @@
 import Foundation
 
 /// Saves the planner's state as one JSON file on this phone. It never leaves the device.
-/// JSON rather than SwiftData so the app's model container (in UsualApp) does not change.
+/// JSON rather than SwiftData, so the planner needs no model container.
 nonisolated struct PlannerStore: Sendable {
     let url: URL?
 

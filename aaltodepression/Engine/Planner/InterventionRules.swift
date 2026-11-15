@@ -136,7 +136,7 @@ nonisolated enum InterventionRules {
         let contact = rotation(ctx, kinds: [.doSomethingFun, .call, .inviteToEat]).first
         let activities = ["go for a walk", "have a coffee", "see a film", "eat together"]
         let activity = activities[((ctx.day.jdn / 7) % activities.count + activities.count) % activities.count]
-        // The lightest coming day: tomorrow or the day after, not a shopping day.
+        // The lightest coming day: the first of the next three days that is not a shopping day.
         let day = [ctx.day + 1, ctx.day + 2, ctx.day + 3].first { !ctx.state.setup.shoppingWeekdays.contains($0.isoWeekday) } ?? ctx.day + 1
         return SocialSuggestion(id: "\(ctx.day.jdn)", contact: contact, activity: activity,
                                 message: MessageTemplates.social(activity: activity, contact: contact, day: day, today: ctx.day),

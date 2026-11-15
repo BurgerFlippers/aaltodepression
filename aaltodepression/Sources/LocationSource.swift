@@ -15,6 +15,8 @@ final class LocationSource: NSObject, CLLocationManagerDelegate {
     private var log = Log()
     private let url = URL.applicationSupportDirectory.appending(path: "visits.json")
     var onChange: (() -> Void)?
+    /// Monitoring runs only while the person has Location turned on in the app.
+    var wanted = false
 
     override init() {
         super.init()
@@ -31,9 +33,14 @@ final class LocationSource: NSObject, CLLocationManagerDelegate {
     }
 
     func start() {
-        guard isEnabled else { return }
+        guard wanted, isEnabled else { return }
         manager.startMonitoringVisits()
         manager.startMonitoringSignificantLocationChanges()
+    }
+
+    func stop() {
+        manager.stopMonitoringVisits()
+        manager.stopMonitoringSignificantLocationChanges()
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didVisit visit: CLVisit) {
@@ -76,7 +83,9 @@ final class LocationSource: NSObject, CLLocationManagerDelegate {
     /// Daily numbers from the stays. Days without any stay stay unknown.
     func table(calendar: Calendar = .current) -> FeatureTable {
         var t = FeatureTable()
-        guard let home = log.places.indices.max(by: { log.places[$0].overnights < log.places[$1].overnights }) else { return t }
+        // Home is unknown until a place has an overnight stay; before that, time away would be guesswork.
+        guard let home = log.places.indices.max(by: { log.places[$0].overnights < log.places[$1].overnights }),
+              log.places[home].overnights > 0 else { return t }
         let homeLoc = CLLocation(latitude: log.places[home].lat, longitude: log.places[home].lon)
         var byDay: [Day: [Int: Double]] = [:]   // hours per place
         for s in log.stays {

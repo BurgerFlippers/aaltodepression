@@ -83,7 +83,7 @@ nonisolated struct ClinicNudge: Codable, Sendable, Equatable {
     let phone: String
 }
 
-/// One situation card on Today. The screen shows the first one only.
+/// One situation card for the day. `TodayPlan.cards` lists them most important first.
 nonisolated enum Card: Codable, Sendable, Identifiable, Equatable {
     /// Ask the safety questions now (opens the safety flow, never answered from a notification).
     case safetyCheck
@@ -116,7 +116,7 @@ nonisolated struct DayReward: Codable, Sendable, Equatable {
     let checkedIn: Bool
     /// All four basics done (food, movement, sleep, medication when there is any).
     let star: Bool
-    /// Asking for help, receiving help or meeting someone ties a gold knot.
+    /// Help asked and answered, or meeting someone, ties a gold knot.
     let goldKnots: Int
     /// A short line to celebrate, or nil.
     let message: String?

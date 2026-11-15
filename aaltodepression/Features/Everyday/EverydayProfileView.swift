@@ -3,16 +3,21 @@ import SwiftUI
 struct EverydayProfileView: View {
     @Environment(EverydayStore.self) private var store
     private var name: String { store.state.profile.name.trimmingCharacters(in: .whitespacesAndNewlines) }
+    @State private var showSupport = false
+    @State private var showSensors = false
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
+                    // Same settings and order as onboarding, so every "I'll do this later" step can be finished here.
                     section("Your name") { EverydayProfileFields() }
-                    section("Daily rhythm") { EverydayRoutineFields() }
                     section("Your people") {
                         EverydayContactsEditor().padding(18)
                             .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                     }
+                    collapsible("Support in advance", expanded: $showSupport) { EverydaySupportSetupFields() }
+                    section("Daily rhythm") { EverydayRoutineFields() }
+                    collapsible("Health, location and movement", expanded: $showSensors) { EverydaySensorSettings() }
                 }.padding(20)
             }.scrollDismissesKeyboard(.interactively).background(EverydayStyle.paper)
                 .mindHeader("You")
@@ -30,6 +35,14 @@ struct EverydayProfileView: View {
             content()
         }
     }
+    private func collapsible<Content: View>(_ title: String, expanded: Binding<Bool>, @ViewBuilder content: () -> Content) -> some View {
+        let inner = content()
+        return DisclosureGroup(isExpanded: expanded) {
+            inner.padding(.top, 12)
+        } label: {
+            Text(title).font(.headline).foregroundStyle(.primary)
+        }
+    }
 }
 
 struct EverydayAboutView: View {
@@ -37,14 +50,14 @@ struct EverydayAboutView: View {
         Form {
             Section {
                 BesideLogoView().frame(width: 64, height: 64).frame(maxWidth: .infinity).padding(.vertical, 12)
-                Text("Mind · Junction 2026").font(.headline)
+                Text("MindMaintainer · Junction 2026").font(.headline)
                 Text("Your profile and the people you choose stay on this phone.")
             }
             Section("This prototype") {
                 Text("Shared Health readings guide three daily task choices. Tap one small step or invite someone along.")
                 Text("Background support requests are local demo drafts for now. They are not sent to anyone automatically.")
             }
-        }.navigationTitle("About Mind").navigationBarTitleDisplayMode(.inline)
+        }.navigationTitle("About MindMaintainer").navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -86,25 +99,31 @@ struct EverydayHelpView: View {
                     }
                     Divider().padding(.top, 8)
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Emergency").font(.title2.bold())
-                        Button {
-                            if let url = URL(string: "tel:+358925250111?oai_link_source=model_response_hotline") { openURL(url) }
-                        } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: "phone.circle.fill").font(.title)
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text("MIELI Crisis Helpline").font(.headline)
-                                    Text("09 2525 0111").monospacedDigit()
-                                    Text("Confidential phone support, 24/7").font(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
-                        }.buttonStyle(.plain).accessibilityIdentifier("mieli-call")
-                        Link("About the helpline", destination: URL(string: "https://mieli.fi/tukea-ja-apua/kriisipuhelin?oai_link_source=model_response_hotline")!).font(.footnote)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Emergency").font(.title2.bold())
+                            Text("Demo · these numbers can't be called from here.").font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        // Demo: shown for information only, deliberately not tappable.
+                        emergencyRow(title: "MIELI Crisis Helpline", number: "09 2525 0111", detail: "Confidential phone support, 24/7")
+                        emergencyRow(title: "Emergency number", number: "112", detail: "Immediate danger to life or health")
                     }
                 }.padding(20)
             }.background(EverydayStyle.paper).navigationTitle("Get support").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
+    }
+
+    private func emergencyRow(title: String, number: String, detail: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: "phone.circle.fill").font(.title).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title).font(.headline)
+                Text(number).monospacedDigit()
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
+            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
+            .accessibilityElement(children: .combine)
     }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EverydayOnboardingView: View {
     @Environment(EverydayStore.self) private var store
+    @Environment(BesidePresentation.self) private var presentation
     @State private var page = 0
     var body: some View {
         NavigationStack {
@@ -13,7 +14,7 @@ struct EverydayOnboardingView: View {
                         case 0:
                             BesideLogoView().frame(width: 116, height: 116).padding(.top, 18)
                             EverydayHeading(eyebrow: "A little support, every day", title: "Your day.\nA little lighter.")
-                            Text("Mind prepares the small things, so you can start with just one.").font(.title3).foregroundStyle(EverydayStyle.muted)
+                            Text("MindMaintainer prepares the small things, so you can start with just one.").font(.title3).foregroundStyle(EverydayStyle.muted)
                             Text("Set up your support on a good day, so you have someone beside you when things feel harder.").foregroundStyle(EverydayStyle.muted)
                             Label("A couple of minutes to get started", systemImage: "clock").font(.subheadline)
                         case 1:
@@ -29,7 +30,8 @@ struct EverydayOnboardingView: View {
                             EverydayHeading(eyebrow: "3 of 5 · Support in advance", title: "A hand with everyday things.")
                             EverydaySupportSetupFields()
                         case 4:
-                            EverydayHeading(eyebrow: "4 of 5 · Your rhythm", title: "A day that fits you.")
+                            EverydayHeading(eyebrow: "4 of 5 · Your rhythm", title: "What's your usual rhythm?")
+                            Text("A steady daily rhythm helps you feel well. MindMaintainer helps you keep it.").foregroundStyle(EverydayStyle.muted)
                             EverydayRoutineFields()
                         default:
                             BesideLogoView().frame(width: 88, height: 88)
@@ -46,11 +48,14 @@ struct EverydayOnboardingView: View {
                         if page < 5 { page += 1 } else { store.state.completedSetup = true; store.refreshDay() }
                     } label: { Text(page == 0 ? "Get started" : page == 5 ? "See my day" : "Continue") }
                         .buttonStyle(EverydayPrimaryButton()).accessibilityIdentifier("setup-next")
-                    if page == 1 || page == 2 || page == 3 { Button("I'll do this later") { page += 1 }.font(.subheadline.weight(.semibold)).frame(minHeight: 40) }
+                    if page == 1 || page == 2 || page == 3 { Button("I'll do this later") {
+                        if page == 3 { presentation.skipSupportSetup() }
+                        page += 1
+                    }.font(.subheadline.weight(.semibold)).frame(minHeight: 40) }
                 }.padding(.horizontal, 24).padding(.vertical, 12)
             }.background(EverydayStyle.paper)
             .toolbar {
-                ToolbarItem(placement: .principal) { Text("Mind").font(.title2.bold()) }
+                ToolbarItem(placement: .principal) { Text("MindMaintainer").font(.title2.bold()) }
                 if page > 0 { ToolbarItem(placement: .topBarLeading) { Button { page -= 1 } label: { Image(systemName: "chevron.left") }.accessibilityLabel("Previous step") } }
                 ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) } }
             }.navigationBarTitleDisplayMode(.inline)
@@ -122,19 +127,29 @@ struct EverydaySensorSettings: View {
     @State private var connecting = false
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            Toggle(isOn: Binding(get: { presentation.healthConnected }, set: { enabled in
+                if enabled {
+                    connecting = true
+                    Task { await presentation.connectHealth(); connecting = false }
+                } else { presentation.disconnectHealth() }
+            })) {
+                HStack(spacing: 8) { Text("Apple Health"); if connecting { ProgressView() } }
+            }.tint(EverydayStyle.orange).disabled(connecting).accessibilityIdentifier("sensor-health")
+            Text("Share sleep, movement, daylight and heart measurements to compare daily changes with your own history. You choose what to share in Apple's permission sheet.").font(.footnote).foregroundStyle(.secondary)
+            if let status = presentation.healthStatus { Text(status).font(.footnote).foregroundStyle(.secondary) }
+            Divider()
+            Toggle("Location", isOn: Binding(get: { presentation.locationEnabled }, set: { enabled in
+                if enabled { presentation.connectLocation() } else { presentation.disconnectLocation() }
+            })).tint(EverydayStyle.orange).accessibilityIdentifier("sensor-location")
+            Text("Counts time away from home and places visited, for Getting out. Collected on this iPhone from now on. Locations never leave this phone.").font(.footnote).foregroundStyle(.secondary)
+            if presentation.locationEnabled && !presentation.locationAuthorized {
+                Text("Location isn't allowed yet. If you declined, allow it in Settings → MindMaintainer → Location.").font(.footnote).foregroundStyle(EverydayStyle.muted)
+            }
+            Divider()
             Toggle("iPhone movement", isOn: Binding(get: { store.state.motionEnabled == true }, set: { enabled in
                 if enabled { Task { await store.connectMotion() } } else { store.disconnectMotion() }
             })).tint(EverydayStyle.orange)
             Text("Optional iPhone steps help guide your daily task choices.").font(.footnote).foregroundStyle(.secondary)
-            Divider()
-            Button {
-                connecting = true
-                Task { await presentation.connectHealth(); connecting = false }
-            } label: {
-                HStack { Text("Connect Apple Health"); Spacer(); if connecting { ProgressView() } else { Image(systemName: "heart.fill") } }
-            }.disabled(connecting).frame(minHeight: 44)
-            Text("Share sleep, movement, daylight and heart measurements to compare daily changes with your own history. You choose what to share in Apple's permission sheet.").font(.footnote).foregroundStyle(.secondary)
-            if let status = presentation.healthStatus { Text(status).font(.footnote).foregroundStyle(.secondary) }
             if let status = store.sensorStatus { Text(status).font(.footnote).foregroundStyle(EverydayStyle.muted) }
         }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
     }

@@ -6,7 +6,8 @@ import CoreLocation
 import UserNotifications
 
 /// Everything the app may ask the person for, in the order onboarding should ask.
-/// Contacts are not here on purpose: the system contact picker needs no permission.
+/// Contacts are not here on purpose: the system contact picker needs no permission, and contact
+/// suggestions ask for access themselves (SupportContactsSource).
 nonisolated enum PermissionKind: String, CaseIterable, Sendable, Identifiable {
     case health, motion, location, notifications, medications
     var id: String { rawValue }
@@ -85,7 +86,7 @@ final class PermissionCenter: NSObject, CLLocationManagerDelegate {
         await refresh()
     }
 
-    /// Asks for everything in order (onboarding's "Allow all" button).
+    /// Asks for everything in order except medications, which need their own sheet.
     func requestAll() async {
         for k in PermissionKind.allCases where k != .medications { await request(k) }
     }

@@ -93,6 +93,8 @@ enum BesideHealthMetric: String, CaseIterable, Identifiable {
 
 struct BesideDemoControlsView: View {
     var embeddedInDemo = false
+    /// Reading edits are an advanced demo control; pass false to show the readings read-only.
+    var allowsEditing = true
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.dismiss) private var dismiss
     @State private var editing: BesideHealthMetric?
@@ -120,7 +122,7 @@ struct BesideDemoControlsView: View {
                     } label: { HStack { Text("Review Health access"); Spacer(); if connecting { ProgressView() } } }.disabled(connecting)
                     Button("Refresh readings") { Task { await presentation.refresh() } }.disabled(presentation.isRefreshing)
                     if let status = presentation.healthStatus { Text(status).font(.caption).foregroundStyle(.secondary) }
-                    Text("To change an earlier denial: Health → profile → Apps → Mind.").font(.caption).foregroundStyle(.secondary)
+                    Text("To change an earlier denial: Health → profile → Apps → MindMaintainer.").font(.caption).foregroundStyle(.secondary)
                 } header: { Text("Health connection") } footer: { Text("Nutrition and Mind entries are context only. Missing logs do not mean a skipped meal or low mood.") }
             }.navigationTitle("Health readings").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
@@ -133,9 +135,9 @@ struct BesideDemoControlsView: View {
                 Text(metric.title).foregroundStyle(.primary)
                 Spacer()
                 Text(metric.text(presentation.reading(metric))).foregroundStyle(.secondary)
-                if presentation.isDemoMode { Image(systemName: "pencil").font(.caption) }
+                if presentation.isDemoMode && allowsEditing { Image(systemName: "pencil").font(.caption) }
             }.padding(.vertical, 4)
-        }.buttonStyle(.plain).disabled(!presentation.isDemoMode)
+        }.buttonStyle(.plain).disabled(!presentation.isDemoMode || !allowsEditing)
     }
 }
 

@@ -176,7 +176,7 @@ nonisolated enum DemoSource {
         // Logged only now and then, like a real person.
         if cold { t.set(F.symptomFatigue, d, 1); t.set(F.symptomHeadache, d, n == 31 ? 1 : 0) }
         if n == 52 { t.set(F.symptomSleepChanges, d, 1) }
-        // The demo user logs State of Mind in the Health app on most evenings. Not scored; Days compares it with Steadiness.
+        // The demo user logs State of Mind in the Health app on most evenings. Not scored; Trends shows it under Mind.
         if chance("som-logged", n, 0.65) {
             var v = around("som", n, mix(0.32, -0.3), 0.14)
             if cold { v -= 0.2 }

@@ -24,9 +24,9 @@ struct SidequestWidgetView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Mind").font(.headline)
+                Text("MindMaintainer").font(.headline).lineLimit(1).minimumScaleFactor(0.7)
                 Spacer()
-                Image("BesideMark").resizable().scaledToFit().saturation(0).colorMultiply(Color(red: 0.76, green: 0.65, blue: 0.97)).frame(width: 30, height: 30).clipShape(RoundedRectangle(cornerRadius: 8))
+                Image("BesideMark").resizable().scaledToFit().frame(width: 30, height: 30).clipShape(RoundedRectangle(cornerRadius: 8))
             }
             if let task = entry.task {
                 Text(task.title).font(.headline).lineLimit(4).minimumScaleFactor(0.8)

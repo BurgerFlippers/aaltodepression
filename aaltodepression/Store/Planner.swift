@@ -4,8 +4,8 @@ import Observation
 /// The planner service the screens talk to. Holds the state, rebuilds today's plan after every
 /// change and saves. All rules live in Engine/Planner; this class only wires them to the app.
 ///
-/// Wiring (integrator): create one `Planner` in AppModel, call `refresh(...)` whenever the feature
-/// table or history changes and when the app becomes active, and route notification responses to
+/// Wiring: `Backend` owns one `Planner` and calls `refresh(...)` whenever the feature table or
+/// history changes and when the app becomes active; notification responses are routed to
 /// `handle(_:deliveredAt:)`. Screens read `today`, `messagesToday`, `openMessages`, `safety`, `rug`
 /// and call the action methods.
 @MainActor @Observable
@@ -39,7 +39,7 @@ final class Planner {
         self.state = store.load() ?? PlannerState(setup: setup ?? PlannerSetup(personName: ""))
     }
 
-    /// A planner filled with Demo user's synthetic days, for the Demo tab and previews.
+    /// A planner filled with Demo user's synthetic days, for the Backend testing screens.
     /// The demo day opens on the check-in; `minutes` is the demo clock (17:30 by default).
     static func demo(day n: Int, minutes: Int = 17 * 60 + 30) -> Planner {
         let p = Planner(store: .memory, setup: DemoPlannerSource.setup, isDemo: true)
@@ -92,12 +92,20 @@ final class Planner {
     /// One scheduling at a time, in order, so a quick second change never leaves stale reminders.
     @ObservationIgnored private var scheduling: Task<Void, Never>?
 
+    /// Whether the repeating daily plan (morning check-in, medicine, shopping day, wind-down) is scheduled.
+    /// The running MindMaintainer UI turns this off: it shows none of those questions. Task reminders
+    /// ("Remind me") are separate (SidequestReminders) and unaffected.
+    var schedulesDailyPlan = true {
+        didSet { if !isDemo, oldValue != schedulesDailyPlan { scheduleReminders(for: state.setup) } }
+    }
+
     private func scheduleReminders(for s: PlannerSetup) {
         let previous = scheduling
+        let enabled = schedulesDailyPlan
         scheduling = Task {
             await previous?.value
-            // An erased planner (no name) keeps no daily reminders at all.
-            if s.personName.isEmpty { await PlannerNotifications.removeDailyPlan() }
+            // An erased planner (no name) or a UI without these questions keeps no daily reminders at all.
+            if s.personName.isEmpty || !enabled { await PlannerNotifications.removeDailyPlan() }
             else { await PlannerNotifications.schedule(for: s) }
         }
     }
@@ -247,6 +255,14 @@ final class Planner {
         offer.reminderAt = nil
         state.sidequests[day.jdn] = offer
         if !isDemo { Task { await SidequestReminders.cancel(on: expectedDay) } }
+        save()
+        return true
+    }
+
+    @discardableResult func completeAnotherSidequest(_ id: String, on expectedDay: Day) -> Bool {
+        syncClock()
+        guard day == expectedDay, var offer = state.sidequests[day.jdn], offer.completeAnother(id) else { return false }
+        state.sidequests[day.jdn] = offer
         save()
         return true
     }

@@ -22,10 +22,10 @@ nonisolated enum ReachOutRules {
             guard days.allSatisfy({ active($0, state: ctx.state) && !completed(pillar, on: $0, ctx: ctx) }) else { continue }
             // Completing today's category resolves this prompt immediately.
             guard !completed(pillar, on: ctx.day, ctx: ctx) else { continue }
-            let preferred = ctx.state.setup.contacts.first { $0.id == preferences.personID }
+            let preferred = ctx.state.setup.contacts.first { $0.id == preferences.person(for: topic) }
             let contact = preferred ?? ctx.state.setup.contacts.first { topic == .social ? $0.relation == .friend : $0.relation != .friend } ?? ctx.state.setup.contacts.first
             return ReachOutPrompt(pillar: pillar, topic: topic, contact: contact, title: title,
-                                  explanation: "This category hasn't been marked on two days when you used Beside. You may simply not have logged it. Reaching out is your choice.")
+                                  explanation: "This category hasn't been marked on two days when you used MindMaintainer. You may simply not have logged it. Reaching out is your choice.")
         }
         return nil
     }
@@ -48,7 +48,7 @@ nonisolated enum ReachOutRules {
         guard let preferences = ctx.state.setup.supportPreferences, preferences.automaticDemo,
               preferences.topics.contains(topic) else { return nil }
         var state = ctx.state
-        state.setup.contacts = state.setup.contacts.filter { $0.id == preferences.personID }
+        state.setup.contacts = state.setup.contacts.filter { $0.id == preferences.person(for: topic) }
         state.outbox = state.outbox.filter { $0.day <= ctx.day }
         let demoContext = PlannerContext(day: ctx.day, now: ctx.now, state: state, table: ctx.table, history: Array(ctx.steps.values))
         return InterventionRules.suggestion(demoContext, kinds: [topic.helpKind], reason: "An agreed practical support request, shown in the automatic-message demo.")

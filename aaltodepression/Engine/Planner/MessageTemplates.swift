@@ -6,27 +6,27 @@ nonisolated enum MessageTemplates {
     static func help(_ kind: HelpKind, contact: Contact, person: String, groceries: [GroceryItem] = []) -> String {
         switch kind {
         case .inviteToEat:
-            return "Hi \(contact.name)! \(person) would love some company today. Could you invite them over to eat, or bring something to share? (Sent at \(person)'s request.)"
+            return "Hi \(contact.firstName)! \(person) would love some company today. Could you invite them over to eat, or bring something to share? (Sent at \(person)'s request.)"
         case .groceryRun:
             let list = groceries.prefix(6).map(\.name).joined(separator: ", ")
             let tail = list.isEmpty ? "" : " A few basics would do: \(list)."
-            return "Hi \(contact.name)! Could you pick up a few groceries for \(person) on your way home today?\(tail) (Sent at \(person)'s request.)"
+            return "Hi \(contact.firstName)! Could you pick up a few groceries for \(person) on your way home today?\(tail) (Sent at \(person)'s request.)"
         case .shopTogether:
-            return "Hi \(contact.name)! Would you go grocery shopping with \(person) today or tomorrow? Company would be nice. (Sent at \(person)'s request.)"
+            return "Hi \(contact.firstName)! Would you go grocery shopping with \(person) today or tomorrow? Company would be nice. (Sent at \(person)'s request.)"
         case .call:
-            return "Hi \(contact.name)! \(person) would be glad to hear from you. A call this evening would suit well. (Sent at \(person)'s request.)"
+            return "Hi \(contact.firstName)! \(person) would be glad to hear from you. A call this evening would suit well. (Sent at \(person)'s request.)"
         case .pharmacyRun:
-            return "Hi \(contact.name)! Could you help \(person) with a visit to the pharmacy this week? (Sent at \(person)'s request.)"
+            return "Hi \(contact.firstName)! Could you help \(person) with a visit to the pharmacy this week? (Sent at \(person)'s request.)"
         case .homeCleaning:
-            return "Hi \(contact.name)! Could you give \(person) a hand with a small task at home this week? (Sent at \(person)'s request.)"
+            return "Hi \(contact.firstName)! Could you give \(person) a hand with a small task at home this week? (Sent at \(person)'s request.)"
         case .doSomethingFun:
-            return "Hi \(contact.name)! Fancy doing something together this week? A walk, a coffee or a film? – \(person)"
+            return "Hi \(contact.firstName)! Fancy doing something together this week? A walk, a coffee or a film? – \(person)"
         }
     }
 
     /// Optional editable first-person draft. Opening Messages itself never needs a template.
     static func reachOut(_ topic: SupportTopic?, contact: Contact?) -> String {
-        let hi = contact.map { "Hi \($0.name)! " } ?? "Hi! "
+        let hi = contact.map { "Hi \($0.firstName)! " } ?? "Hi! "
         switch topic {
         case .groceries: return hi + "Would you have time to go grocery shopping with me, or pick up a few things?"
         case .pharmacy: return hi + "Could you give me a hand with a visit to the pharmacy this week?"
@@ -38,7 +38,7 @@ nonisolated enum MessageTemplates {
 
     static func social(activity: String, contact: Contact?, day: Day, today: Day) -> String {
         let when = day == today ? "today" : day == today + 1 ? "tomorrow" : weekdayName(day)
-        let hi = contact.map { "Hi \($0.name)! " } ?? "Hi! "
+        let hi = contact.map { "Hi \($0.firstName)! " } ?? "Hi! "
         return "\(hi)Would you like to \(activity) \(when)? Around 3 or 5 pm could work."
     }
 
@@ -79,4 +79,9 @@ nonisolated enum HealthWordFilter {
     static func clean(_ text: String, ignoring names: [String] = []) -> String? {
         isClean(text, ignoring: names) ? text : nil
     }
+}
+
+nonisolated extension Contact {
+    /// Greetings use only the first name: "Anna Virtanen" → "Anna".
+    var firstName: String { name.split(separator: " ").first.map(String.init) ?? name }
 }

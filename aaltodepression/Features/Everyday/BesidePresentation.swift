@@ -17,6 +17,9 @@ final class BesidePresentation {
     private(set) var healthStatus: String?
     private(set) var healthReadAt: Date?
     private(set) var demoLoad: Double?
+    /// Trends "Switch to demo data": a scenario on a simulated history. Separate from the advanced demo
+    /// controls (demoLoad, edits, score overrides); shown only while Trends is open and cleared on leaving it.
+    private(set) var quickScenario: TrendScenario?
     private(set) var demoRecipientID: String?
     /// Demo only: hand-set area scores for the selected day, to see how the challenges respond.
     private(set) var scoreOverrides: [ScoreKind: Double] = [:]
@@ -30,8 +33,20 @@ final class BesidePresentation {
     var simulatedData: Bool = UserDefaults.standard.bool(forKey: "mind.simulatedData") {
         didSet { defaults.set(simulatedData, forKey: "mind.simulatedData"); Task { await refresh() } }
     }
-    /// Places needs location history; only the simulated history provides it for now.
-    private var usesLocation: Bool { simulatedData }
+    /// Apple Health is read only while this is on. Turning it off does not change Health's own permissions.
+    private(set) var healthConnected: Bool = UserDefaults.standard.bool(forKey: "beside.health.connected") {
+        didSet { defaults.set(healthConnected, forKey: "beside.health.connected") }
+    }
+    /// Visits recorded on this iPhone while Location is on. Nothing about location leaves the phone.
+    private let location = LocationSource()
+    private(set) var locationEnabled: Bool = UserDefaults.standard.bool(forKey: "mind.location.enabled") {
+        didSet { defaults.set(locationEnabled, forKey: "mind.location.enabled") }
+    }
+    private(set) var locationAuthorized = false
+    /// Places needs location history: real visits when Location is on and allowed, or the simulated history.
+    private var usesLocation: Bool { simulatedData || (locationEnabled && locationAuthorized) }
+    /// The Trends quick demo has simulated places too; it only affects the sandbox, never the live computation.
+    private var sandboxUsesLocation: Bool { usesLocation || quickScenario != nil }
 
     init(profileStore: EverydayStore, backend: Backend = Backend()) {
         self.profileStore = profileStore
@@ -43,6 +58,17 @@ final class BesidePresentation {
         profileStore.state.profile.weight = ""
         profileStore.state.profile.height = ""
         if let data = defaults.data(forKey: "beside.home.boxes"), let stored = try? JSONDecoder().decode([BesideHomeBox].self, from: data) { boxes = stored }
+        // This UI has no morning check-in, medicine, shopping or wind-down questions, so their
+        // repeating notifications are not scheduled, and any already pending are removed.
+        backend.planner.schedulesDailyPlan = false
+        locationAuthorized = location.isEnabled
+        location.onChange = { [weak self] in
+            guard let self else { return }
+            self.locationAuthorized = self.location.isEnabled
+            Task { await self.refresh() }
+        }
+        location.wanted = locationEnabled
+        location.start()
     }
 
     var setupSignature: String {
@@ -106,7 +132,7 @@ final class BesidePresentation {
             // Read only what Health already permits. New unrequested types must not hide previously shared core readings.
             // Queries never open a permission prompt; missing or denied types return no usable rows.
             await liveBackend.permissions.refresh()
-            if HealthKitSource.isAvailable {
+            if HealthKitSource.isAvailable, healthConnected {
                 let keys = Set(BesideHealthMetric.allCases.map(\.key) + [F.activeHours, F.sleepEfficiency, F.awakeMin, F.deepMin, F.remMin, F.coreMin])
                 let report = await HealthKitSource().readReport(days: 120, latitude: 0, longitude: 0, keys: keys)
                 let read = report.table
@@ -130,6 +156,7 @@ final class BesidePresentation {
                     healthStatus = "No shared Health readings. Review Health access below; previously denied types must be enabled in Health."
                 }
             }
+            if locationEnabled, locationAuthorized { fresh.merge(location.table()) }
             if profileStore.state.motionEnabled == true {
                 fresh.merge(await MotionSource.read())
                 if let reading = profileStore.state.movementReading { fresh.set(F.steps, Day(reading.date), Double(reading.steps)) }
@@ -154,14 +181,37 @@ final class BesidePresentation {
         healthStatus = "Opening Apple Health permissions…"
         do {
             try await BesideHealthAccess.request()
-            defaults.set(true, forKey: "beside.health.connected")
+            healthConnected = true
             await refresh()
         } catch { healthStatus = "Health access couldn't be requested. Try again or check Settings." }
     }
 
+    func disconnectHealth() {
+        healthConnected = false
+        healthStatus = "Apple Health is not read. To remove access completely, use Health → profile → Apps → MindMaintainer."
+        Task { await refresh() }
+    }
+
+    /// Asks for Location (While Using first; iOS may later offer Always) and starts recording visits.
+    func connectLocation() {
+        locationEnabled = true
+        location.wanted = true
+        location.requestPermission()
+        location.start()
+        locationAuthorized = location.isEnabled
+    }
+
+    func disconnectLocation() {
+        locationEnabled = false
+        location.wanted = false
+        location.stop()
+        Task { await refresh() }
+    }
+
     func repairHealthAccessIfNeeded() async {
         let key = "mind.health.accessRepair.v1"
-        guard !defaults.bool(forKey: key), HealthKitSource.isAvailable else { return }
+        guard !defaults.bool(forKey: key), HealthKitSource.isAvailable,
+              profileStore.state.completedSetup, healthConnected else { return }
         defaults.set(true, forKey: key)
         await connectHealth()
     }
@@ -197,13 +247,32 @@ final class BesidePresentation {
     }
 
     func saveSupportPreferences(_ preferences: SupportPreferences, contactAgreed: Bool) {
+        let backend = liveBackend
         var setup = backend.planner.setup
         setup.supportPreferences = preferences
         setup.helpConsent = .askEachTime
-        if preferences.automaticDemo, contactAgreed, let index = setup.contacts.firstIndex(where: { $0.id == preferences.personID }) {
-            setup.contacts[index].agreed = true
-            setup.contacts[index].canHelpWith.formUnion(preferences.topics.map(\.helpKind))
+        if preferences.automaticDemo, contactAgreed {
+            for topic in preferences.topics {
+                guard let index = setup.contacts.firstIndex(where: { $0.id == preferences.person(for: topic) }) else { continue }
+                setup.contacts[index].agreed = true
+                setup.contacts[index].canHelpWith.insert(topic.helpKind)
+            }
         }
+        if setup != backend.planner.setup { backend.planner.updateSetup(setup) }
+    }
+
+    /// "I'll do this later" on the support step: no automatic support and no agreement until the person decides.
+    /// The step saves its defaults on appear, so undo what that marked.
+    func skipSupportSetup() {
+        let backend = liveBackend
+        var setup = backend.planner.setup
+        guard var preferences = setup.supportPreferences, preferences.automaticDemo else { return }
+        preferences.automaticDemo = false
+        let helpers = Set(preferences.topics.map { preferences.person(for: $0) })
+        for index in setup.contacts.indices where helpers.contains(setup.contacts[index].id) {
+            setup.contacts[index].agreed = false
+        }
+        setup.supportPreferences = preferences
         backend.planner.updateSetup(setup)
     }
 
@@ -219,7 +288,7 @@ final class BesidePresentation {
     }
 
     var selectedDayAvailability: String {
-        let metrics = BesideHealthMetric.allCases.filter { $0.group != "Places" || usesLocation }
+        let metrics = BesideHealthMetric.allCases.filter { $0.group != "Places" || sandboxUsesLocation }
         let count = metrics.filter { reading($0) != nil }.count
         if day == Day(Date()) { return "Today is still in progress · \(count) of \(metrics.count) readings recorded so far." }
         return "\(count) of \(metrics.count) readings shared for this day. Not every device or tracker records every type."
@@ -248,6 +317,7 @@ final class BesidePresentation {
 
     func returnToLive() {
         selectedDay = nil
+        quickScenario = nil
         scoreOverrides.removeAll()
         demoLoad = nil
         demoRecipientID = nil
@@ -268,6 +338,14 @@ final class BesidePresentation {
     }
     private var displayedTable: FeatureTable {
         guard isDemoMode else { return table }
+        if let quickScenario {
+            // The steady part of the simulated history (its built-in drift starts 15 days before its end),
+            // with the scenario's change over the last days.
+            var result = SimulatedSource.table(endingOn: day + 15).truncated(through: day)
+            let change = DemoScenarioRules.table(ending: day, load: quickScenario.load, source: result)
+            for (key, series) in change.numbers { for (d, value) in series { result.set(key, d, value) } }
+            return result
+        }
         var result = demoLoad.map { DemoScenarioRules.table(ending: day, load: $0, source: table) } ?? table
         for (jdn, edits) in demoEdits {
             for (key, value) in edits { result.set(key, Day(jdn: jdn), value) }
@@ -291,6 +369,12 @@ final class BesidePresentation {
             backend = demo
         }
         demoLoad = min(1, max(0, load))
+        refreshSandbox(replaceSidequests: true)
+    }
+
+    func setQuickScenario(_ scenario: TrendScenario?) {
+        guard isDemoMode else { return }
+        quickScenario = scenario
         refreshSandbox(replaceSidequests: true)
     }
 
@@ -355,11 +439,12 @@ final class BesidePresentation {
         return median(values.map { abs($0 - mid) }) * 1.4826 * 60
     }
 
-    var locationAvailable: Bool { usesLocation }
+    var locationAvailable: Bool { isDemoMode ? sandboxUsesLocation : usesLocation }
 
     private func refreshSandbox(replaceSidequests: Bool = false) {
         guard let selectedDay, let sandbox else { return }
-        if demoLoad != nil {
+        // Demo message recipient for either demo; the live planner is never touched.
+        if demoLoad != nil || quickScenario != nil {
             var setup = sandbox.planner.setup
             setup.helpConsent = .askEachTime
             setup.clinicPhone = ""
@@ -372,8 +457,9 @@ final class BesidePresentation {
             if setup != sandbox.planner.setup { sandbox.planner.updateSetup(setup) }
         }
         let inputs = planningTable(displayedTable.truncated(through: selectedDay))
-        healthHistory = StepEngine.run(table: inputs, through: selectedDay, homeTimeZone: TimeZone.current.identifier, locationEnabled: usesLocation)
-        if !scoreOverrides.isEmpty, let i = healthHistory.firstIndex(where: { $0.day == selectedDay }) {
+        healthHistory = StepEngine.run(table: inputs, through: selectedDay, homeTimeZone: TimeZone.current.identifier, locationEnabled: sandboxUsesLocation)
+        // The quick demo stays independent of the advanced controls' score overrides.
+        if quickScenario == nil, !scoreOverrides.isEmpty, let i = healthHistory.firstIndex(where: { $0.day == selectedDay }) {
             let old = healthHistory[i]
             var result = old.result
             for (kind, value) in scoreOverrides { result.scores[kind] = value }
@@ -382,7 +468,7 @@ final class BesidePresentation {
             healthHistory[i] = StepDay(result: result, baselineDay: old.baselineDay, isDrift: old.isDrift,
                                        driftDaysInLastWeek: old.driftDaysInLastWeek, step: old.step, since: old.since)
         }
-        sandbox.refresh(day: selectedDay, minutes: 18 * 60, table: inputs, history: healthHistory, locationEnabled: usesLocation)
+        sandbox.refresh(day: selectedDay, minutes: 18 * 60, table: inputs, history: healthHistory, locationEnabled: sandboxUsesLocation)
         sandbox.planner.prepareSidequests(signal: healthSignal, replaceUnchosen: replaceSidequests)
     }
 
@@ -467,5 +553,17 @@ final class BesidePresentation {
             if profileStore.state.completed.contains(legacy), backend.planner.state.marks[item.id] == nil { backend.planner.mark(item, .done) }
         }
         defaults.set(true, forKey: key)
+    }
+}
+
+/// Scenarios for the Trends quick demo. Load feeds the existing simulated-change rule.
+enum TrendScenario: String, CaseIterable, Identifiable {
+    case steady, someHarderDays, harderStretch
+    var id: String { rawValue }
+    var title: String {
+        switch self { case .steady: "Steady"; case .someHarderDays: "A few harder days"; case .harderStretch: "A harder stretch" }
+    }
+    var load: Double {
+        switch self { case .steady: 0; case .someHarderDays: 0.5; case .harderStretch: 1 }
     }
 }

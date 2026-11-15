@@ -1,23 +1,39 @@
 import SwiftUI
 
-/// The live day only. History and editable judging data live in the Demo tab.
+/// The live day only, plus an unsaved demo task preview. History and demo data live in the Trends tab.
 struct EverydayTodayView: View {
     @Environment(BesidePresentation.self) private var presentation
     @State private var showMessages = false
     @State private var lastMessageRoute = 0
+    /// Demo preview scores; nil shows the normal day. Cleared whenever the tab is left.
+    @State private var previewScores: [ScoreKind: Double]?
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(spacing: 16) {
-                        BesideSignalCheckInCard()
-                        BesideSidequestView().id("daily-sidequest")
-                    }.padding(.horizontal, 16).padding(.vertical, 4)
+            // A real container (not Group), so onDisappear means leaving the tab, not switching branches.
+            ZStack {
+                if previewScores != nil {
+                    BesideTaskPreview(scores: Binding(get: { previewScores ?? [:] }, set: { previewScores = $0 }),
+                                      day: presentation.day, close: { previewScores = nil })
+                } else {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                BesideSidequestView().id("daily-sidequest")
+                                if presentation.sidequest != nil {
+                                    Button("Show more tasks (demo)") { previewScores = startingScores }
+                                        .font(.subheadline.weight(.semibold)).foregroundStyle(EverydayStyle.accent)
+                                        .frame(minHeight: 44).accessibilityIdentifier("task-preview-show")
+                                }
+                            }.padding(.horizontal, 16).padding(.vertical, 4)
+                        }
+                        .refreshable { await presentation.refresh() }
+                        .onChange(of: presentation.sidequestFocus) { _, _ in proxy.scrollTo("daily-sidequest", anchor: .top) }
+                    }
                 }
-                .refreshable { await presentation.refresh() }
-                .onChange(of: presentation.sidequestFocus) { _, _ in proxy.scrollTo("daily-sidequest", anchor: .top) }
             }
+            .onDisappear { previewScores = nil }
+            .onChange(of: presentation.sidequestFocus) { _, _ in previewScores = nil }
             .background(EverydayStyle.paper)
             .mindHeader("Today's one thing")
             .onChange(of: presentation.messageFocus, initial: true) { _, value in
@@ -27,6 +43,12 @@ struct EverydayTodayView: View {
                 EverydaySocialView(sidequest: presentation.sidequest?.selected, smallerQuest: presentation.sidequest?.useSmaller ?? false)
             }
         }
+    }
+
+    /// Start from today's measured scores; unknown ones start at a steady 70.
+    private var startingScores: [ScoreKind: Double] {
+        let measured = presentation.healthSignal?.result.scores ?? [:]
+        return Dictionary(uniqueKeysWithValues: ScoreKind.allCases.map { ($0, measured[$0].map { min(100, max(0, $0)) } ?? 70) })
     }
 }
 

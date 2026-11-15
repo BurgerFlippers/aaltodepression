@@ -4,7 +4,13 @@ import Foundation
 nonisolated enum SidequestRules {
     static func make(day: Day, signal: StepDay?, hasMedication: Bool) -> SidequestDay {
         let usable = signal.flatMap { day - $0.day >= 0 && day - $0.day <= 1 ? $0 : nil }
-        let scores = usable?.result.scores ?? [:]
+        let forceSmall = usable?.result.likelyIll == true || usable?.step == .reachOut
+        return make(day: day, scores: usable?.result.scores ?? [:], forceSmall: forceSmall,
+                    signalDay: usable?.day, hasMedication: hasMedication)
+    }
+
+    private static func make(day: Day, scores: [ScoreKind: Double], forceSmall: Bool,
+                             signalDay: Day?, hasMedication: Bool) -> SidequestDay {
         var candidates: [(SidequestCategory, Double)] = []
         // Each challenge category takes the lowest of the scores it can help: sleep and rhythm for sleep,
         // movement and daylight for movement. Location alone never creates a need.
@@ -15,7 +21,7 @@ nonisolated enum SidequestRules {
             candidates.append((.movement, movement))
         }
         candidates.sort { $0.1 == $1.1 ? $0.0.rawValue < $1.0.rawValue : $0.1 < $1.1 }
-        let small = usable?.result.likelyIll == true || usable?.step == .reachOut || candidates.first.map { $0.1 < 45 } == true
+        let small = forceSmall || candidates.first.map { $0.1 < 45 } == true
         var categories: [SidequestCategory]
         let reason: String
         if let first = candidates.first {
@@ -35,7 +41,7 @@ nonisolated enum SidequestRules {
             let pool = catalog.filter { $0.category == category && !chosen.map(\.id).contains($0.id) }
             if !pool.isEmpty { chosen.append(pool[((day.jdn % pool.count) + pool.count) % pool.count]) }
         }
-        return SidequestDay(options: chosen, reason: reason, signalDay: candidates.isEmpty ? nil : usable?.day, startsSmall: small)
+        return SidequestDay(options: chosen, reason: reason, signalDay: candidates.isEmpty ? nil : signalDay, startsSmall: small)
     }
 
     private static func quest(_ id: String, _ category: SidequestCategory, _ title: String, _ minutes: Int, _ instruction: String,
@@ -46,14 +52,14 @@ nonisolated enum SidequestRules {
     }
 
     static let catalog: [Sidequest] = [
-        quest("colour-walk", .movement, "Find three colourful things on a walk", 10, "Take a 10-minute walk outside. Find three things in your favourite colour.", "Find one thing in your favourite colour", 1, "From a comfortable spot, find one thing in your favourite colour."),
-        quest("one-song", .movement, "Move gently to one favourite song", 4, "Play a favourite song and move or stretch comfortably, seated or standing.", "Try one comfortable movement to music", 1, "Play a little of a favourite song. Try one comfortable movement, even just your hands."),
+        quest("colour-walk", .movement, "Spend a little time in nature", 15, "Go to a park, a forest or somewhere by the water for a while. Notice what you see and hear.", "Find one thing in your favourite colour", 1, "From a comfortable spot, find one thing in your favourite colour."),
+        quest("one-song", .movement, "Move gently to one favourite song", 4, "Play a favourite song and move or stretch comfortably, seated or standing.", "Take a short walk around your home", 2, "Walk slowly from room to room for a couple of minutes."),
         quest("new-view", .movement, "Take a five-minute walk or roll somewhere nearby", 5, "Walk or roll to a nearby spot for five minutes. Notice one interesting detail.", "Move to a different comfortable spot in your room", 1, "Move to another comfortable spot in your room. Notice one thing you can see."),
         quest("park-explorer", .movement, "Spend 15 minutes in a nearby park", 15, "Spend 15 minutes in a nearby park. Find a tree, leaf or view you like.", "Spend two minutes just outside your door", 2, "If comfortable and accessible, spend two minutes just outside your door."),
-        quest("tomorrow-you", .sleep, "Put one thing ready for tomorrow morning", 5, "Put out a mug, clothes or a breakfast bowl to make tomorrow morning easier.", "Put your morning mug or clothes within reach", 1, "Choose just one useful thing and place it where you will see it in the morning."),
-        quest("soft-landing", .sleep, "Dim the lights and unwind for five minutes tonight", 5, "Before your usual bedtime, dim a light and enjoy five minutes of calm music or reading.", "Dim one light before your usual bedtime", 1, "Before your usual bedtime, dim one light and take a quiet moment. Nothing else to prepare."),
-        quest("morning-light", .sleep, "Take a five-minute daylight break outside", 5, "Take a five-minute daylight break outside. Notice the sky and sounds around you.", "Open the curtains and sit by a window for a moment", 1, "During daylight hours, open the curtains and spend a moment by a window. An outdoor break can wait."),
-        quest("cosy-corner", .sleep, "Clear a small space beside your bed for tonight", 5, "Clear one small spot by your bed. Put a familiar book within reach for tonight.", "Move one thing from your bedside", 1, "Move just one thing from your bedside to make a little space for tonight."),
+        quest("tomorrow-you", .sleep, "Put one thing ready for tomorrow morning", 5, "Put out a mug, clothes or a breakfast bowl to make tomorrow morning easier.", "Have a snack at least once today", 2, "Have at least one snack you like today. Anything familiar is fine."),
+        quest("soft-landing", .sleep, "Dim the lights and unwind for five minutes tonight", 5, "Before your usual bedtime, dim a light and enjoy five minutes of calm music or reading.", "Turn off the bedroom lights before bed", 1, "When you go to bed, turn off the bedroom lights. Nothing else to prepare."),
+        quest("morning-light", .sleep, "Take a five-minute daylight break outside", 5, "Take a five-minute daylight break outside. Notice the sky and sounds around you.", "Open the curtains in the morning, close them in the evening", 1, "Open the curtains when you get up and close them in the evening."),
+        quest("cosy-corner", .sleep, "Tidy your bedroom", 15, "Spend about 15 minutes tidying your bedroom. Start with whatever is easiest.", "Tidy your bedside table", 3, "Clear and tidy just your bedside table."),
         quest("easy-snack", .nutrition, "Have two easy foods you enjoy together", 3, "Have two easy foods you enjoy, such as yoghurt and fruit. Choose what suits your dietary needs.", "Put a familiar ready-to-eat snack within reach", 1, "Put one familiar, ready-to-eat food within reach. Choose what suits your dietary needs."),
         quest("simple-meal", .nutrition, "Make a simple meal with three familiar foods", 10, "Make a meal from ready soup, bread and a topping you like, or another familiar combination.", "Take the first step to prepare a ready meal", 2, "Choose a familiar ready meal or leftovers. Follow its first preparation step."),
         quest("food-favour", .nutrition, "Ask someone to share an easy meal", 3, "Ask someone: ‘Could we eat something easy together?’ A shared ready meal counts.", "Invite someone to share a snack", 1, "Send someone: ‘Fancy sharing a snack sometime?’ You do not need to arrange everything now."),
@@ -63,7 +69,7 @@ nonisolated enum SidequestRules {
         quest("medicine-reminder", .medicine, "Check your existing medication reminder", 3, "Check your reminder for your existing medication routine. Keep your prescribed dose and schedule.", "Open your medication reminder and check its time", 1, "Open your medication reminder and check its time. Keep your prescribed dose and schedule."),
         quest("medicine-stock", .medicine, "Check your medication supply", 3, "Check your regular medication supply. If it is running low, note the next pharmacy step.", "Find your regular medication and check the supply", 1, "Find your regular medication and check whether a refill needs planning."),
         quest("pharmacy-company", .medicine, "Ask someone to join a needed pharmacy visit", 3, "If a pharmacy visit is due, ask someone to join you or help arrange it.", "Ask someone if they can help with a pharmacy visit", 1, "Ask someone: ‘Could you help with a pharmacy visit when I need it?’"),
-        quest("favourite-route", .movement, "Walk or roll a familiar route for ten minutes", 10, "Walk or roll a familiar route for ten minutes. Turn back whenever you want.", "Move towards your front door", 1, "Take a comfortable step towards the door, seated or standing. Going outside can wait."),
+        quest("favourite-route", .movement, "Walk or roll a familiar route for ten minutes", 10, "Walk or roll a familiar route for ten minutes. Turn back whenever you want.", "Step outside for a moment", 2, "Step outside your door for a moment and get some fresh air."),
         quest("stretch-break", .movement, "Take a three-minute stretch break", 3, "Spend three minutes gently moving your shoulders, hands or feet. Stop if it hurts.", "Relax your shoulders once", 1, "Make one gentle shoulder movement or another comfortable movement. That is enough."),
         quest("quiet-song", .sleep, "Choose one calm song for your evening", 4, "Before your usual bedtime, listen to one calm, familiar song at a comfortable volume.", "Play a little calm music tonight", 1, "Listen to a short part of a calm song before your usual bedtime."),
         quest("morning-plan", .sleep, "Write down one easy thing for tomorrow morning", 3, "Write down one easy morning action, like opening the curtains. Leave the note where you will see it.", "Choose your first small step for tomorrow", 1, "Pick one easy morning action in your mind. No list needed."),

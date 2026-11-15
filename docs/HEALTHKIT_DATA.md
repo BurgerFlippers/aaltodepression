@@ -1,27 +1,63 @@
-# HealthKit data used by Beside
+# HealthKit data used by MindMaintainer
+
+Checked against the code on 15 November 2026. Data policy: [DATA_SCOPE.md](DATA_SCOPE.md).
 
 ## Active interface
 
-The active Health connection asks for read-only access. Data is read through `HealthKitSource` for up to 120 days, with an explicit key allow-list supplied by `BesidePresentation`. A type returns values only when there are shared records. Missing values stay unknown; a missing nutrition entry is not evidence that a meal was skipped.
+Apple Health is read only while the Apple Health switch is on (onboarding step 5 or You). Turning the switch off stops reading. It does not change Health's own permissions, which the person removes in Health → profile → Apps.
+
+The permission request (`BesideHealthAccess` in `Features/Everyday/BesideDemoControlsView.swift`) asks to read the types below. On iOS 18 and later it also asks to save State of Mind, for a check-in that is not in the running UI, so nothing is saved to Health now.
+
+Data is read through `HealthKitSource.readReport(days: 120, ..., keys:)` with a key allow-list supplied by `BesidePresentation`. Reads happen when the app becomes active and on pull to refresh. A type returns values only when there are shared records. Missing values stay unknown. A missing nutrition entry is not evidence that a meal was skipped. Health readings are held in memory and not saved by the app.
 
 | Group | Values read or derived | HealthKit source | Use |
 |---|---|---|---|
-| Movement | Daily steps, walking speed, exercise minutes; hours with movement derived from hourly steps | `stepCount`, `walkingSpeed`, `appleExerciseTime` | Existing movement and rhythm context |
-| Sleep | Asleep hours, sleep onset, wake time, awake minutes, sleep efficiency, deep/REM/core minutes | `sleepAnalysis` | Existing sleep/rhythm inputs; stages are supporting detail |
-| Daylight | Recorded daylight minutes | `timeInDaylight` | Existing daylight input |
-| Heart and body | Resting heart rate, HRV (SDNN), breathing rate, sleeping wrist temperature | `restingHeartRate`, `heartRateVariabilitySDNN`, `respiratoryRate`, `appleSleepingWristTemperature` | Existing body/change inputs |
-| Nutrition | Logged energy (kcal), water (mL), protein, carbohydrates and total fat (g) | `dietaryEnergyConsumed`, `dietaryWater`, `dietaryProtein`, `dietaryCarbohydrates`, `dietaryFatTotal` | Context only, shown in demo controls |
-| Mind | Daily average State of Mind valence, mindful minutes, latest PHQ-9 and GAD-7 score recorded on each day | `stateOfMind`, `mindfulSession`, `PHQ9`, `GAD7` | Context only, shown in demo controls |
+| Movement | Daily steps, walking speed, exercise minutes; active hours derived from hourly steps | `stepCount`, `walkingSpeed`, `appleExerciseTime` | Movement score |
+| Sleep | Asleep hours, sleep onset, wake time, awake minutes, sleep efficiency, deep/REM/core minutes | `sleepAnalysis` | Sleep and Rhythm scores; stages are not scored |
+| Daylight | Recorded daylight minutes | `timeInDaylight` | Daylight score |
+| Heart and body | Resting heart rate, HRV (SDNN), breathing rate, sleeping wrist temperature | `restingHeartRate`, `heartRateVariabilitySDNN`, `respiratoryRate`, `appleSleepingWristTemperature` | Body score and the illness flag |
+| Nutrition | Logged energy (kcal), water (mL), protein, carbohydrates and total fat (g) | `dietaryEnergyConsumed`, `dietaryWater`, `dietaryProtein`, `dietaryCarbohydrates`, `dietaryFatTotal` | Context only: Trends → Food |
+| Mind | Daily average State of Mind valence, mindful minutes, latest PHQ-9 and GAD-7 score recorded on each day | `stateOfMind`, `mindfulSession`, `PHQ9`, `GAD7` | Context only: Trends → How you feel |
 
-The active read allow-list excludes workouts, headphone exposure and medication events. The shared legacy reader still supports those for older backend testing screens, but does not query them for the active interface. No location-based daylight estimate is retained without location data.
+The active read allow-list excludes workouts, headphone exposure and medication. The older reader in `HealthKitSource` still supports those for the DevTools screens, but the running app does not ask for them or read them. The daylight estimate from steps is not used, because the Health reader gets no location.
 
-Nutrition and Mind values are separated from the table passed to the planner and StepEngine. They do not change the gradient, complete Eat, infer meal counts or trigger an automatic request. The app does not administer PHQ-9/GAD-7; it displays existing Health scores. Permissions and record availability depend on the OS/device and sources that write to Health.
+Nutrition and Mind values are removed from the table passed to the planner and `StepEngine`. They do not change scores or tasks, do not infer meal counts and never trigger a request to another person. The app does not give PHQ-9 or GAD-7; it shows scores that already exist in Health. Which types are available depends on the OS, the device and the apps that write to Health.
 
-## Demo and contact behaviour
+## Other sources merged with Health
 
-Demo overrides remain in the in-memory copy, never in Health or the live planner. Live mode uses the last complete day for the gradient; the demo evaluates the selected date. The native permission sheet lets the person choose each readable type.
+- **Location** (when the person turns it on): time away from home and places visited, for Getting out and the Places score. See DATA_SCOPE.md.
+- **iPhone movement** (when turned on): Core Motion walking and still hours for the last 7 days, and today's pedometer steps.
 
-A missing-category reach-out suggestion is separate from Health scoring: two previous full days must have actual Beside activity, and the category must be unmarked on both. Blank days do not count. The suggestion does not queue a message. Opening Messages does not mark a task or claim that a message was sent. Automatic-request demonstrations require the demo planner, an enabled topic, explicit demo opt-in and an agreed recipient, and reuse existing rate limits. They only create local simulated records.
+## Demo data
+
+- Demo edits, scenarios and score overrides live in an in-memory copy of the planner. They never reach Health or the live planner.
+- "Use simulated data" (advanced demo menu) replaces Health with 60 simulated days ending today. Health is not read while it is on.
+- Live mode scores the last complete day. Trends and the demo score the selected day.
+
+## Reach-out suggestions
+
+`ReachOutRules` is separate from Health scoring. A suggestion needs two previous full days with real activity in the app and the category unmarked on both. Blank days do not count. It does not queue a message, and opening Messages does not mark a task done or claim a message was sent. No current screen shows this suggestion.
+
+Automatic-request demonstrations (`demonstrateAutomaticSupport`) need the demo planner, an enabled topic, explicit opt-in and an agreed recipient, and use the existing rate limits. They only create local records. No current screen calls them.
+
+## Daily tasks
+
+- Task choice reuses the Health-derived scores. The Sleep category uses the lower of Sleep and Rhythm; Move uses the lower of Movement and Daylight. Two choices come from the lower category and one from the other if its score is under 80.
+- Signals older than one day, future signals and non-finite scores are ignored. Without a usable score the app says these are general ideas.
+- Smaller versions are offered when the lowest category score is under 45, at step 2 (reach out) or on a likely-illness day. These are demo heuristics, not clinical thresholds.
+- Nutrition, Mind, Social and medication data do not become scores. Choosing tasks does not widen the Health read scope.
+- Choosing or completing a task never changes Health scores or sends a message.
+- The five task categories are Eat, Move, Sleep, Social and Medicine, with six regular and smaller pairs each.
+
+## Widget and reminders
+
+- The widget's App Group file holds only the chosen task's day, id, wording, category, minutes, size and done state. No Health values, contacts or demo data.
+- The widget cannot complete a task. Old completion receipts are deleted without being applied.
+- "Remind me" sets one local notification for today with private text. It is cancelled when the task is done or changed.
+
+## No longer shown
+
+The routine feedback marker (each manually logged category moved the marker 1.5 points towards green, at most 9) lived in `BesideDemoBar`, which no current screen uses. Trends' Daily balance shows the Health day score without this adjustment.
 
 ## API references
 
@@ -29,17 +65,3 @@ A missing-category reach-out suggestion is separate from Health scoring: two pre
 - [Apple HealthKit data types](https://developer.apple.com/documentation/healthkit/data-types)
 - [Apple HealthKit updates: mental wellbeing samples](https://developer.apple.com/documentation/updates/healthkit)
 - [Apple SMS links](https://developer.apple.com/library/archive/featuredarticles/iPhoneURLScheme_Reference/SMSLinks/SMSLinks.html)
-
-## Routine display feedback
-
-The displayed marker adds a small presentation adjustment to the Health-based position: 1.5 percentage points towards green for each distinct manually logged category on the selected day, capped at 9 points. The raw Health scores, baseline, support decisions and automatic-message rules remain unchanged. Repeated same-category marks cannot accumulate extra credit, and undo removes the contribution when no done mark remains in that category. Even the maximum adjustment keeps an active call signal in the red. Demo controls show the Health evaluation day and the routine-feedback day separately.
-
-## Daily sidequest demo (2026-11-15)
-
-Sidequest selection reuses the existing Health-derived Sleep/Rhythm and Movement scores. The weakest available category guides three curated choices; two nearby low scores produce two choices for the weaker category and one for the other. Signals older than one day, future signals and non-finite scores are ignored. When no usable category score exists, the UI explicitly explains that these are general ideas. Nutrition, Mind, Social and medication data do not become new deficiency scores. Selection does not expand the Health read scope. The source day is available through the sidequest info button. Smaller tasks are offered by default for a low category score, an existing reach-out state or illness flag; these are demo heuristics, not clinical thresholds. Task completion never changes measured Health scores or sends messages.
-
-## Challenge-first UI and widget (2026-11-15)
-
-The five public task categories are Eat, Move, Sleep, Social and Medicine. The library has six regular/smaller pairs per category. Existing Health-derived Sleep/Rhythm and Movement scores still guide selection; additional categories are curated alternatives, not newly inferred deficiencies. Routine checkbox cards have been removed from the home screen. A completed challenge stays separate from measured Health scores and support escalation.
-
-The widget's private App Group contains only the selected task's day, identifier, words, category, duration, chosen size and completion state. Live Health measurements, contacts and demo overrides are not exported. A widget receipt can complete only the matching live-day selected task and size. Reminders are explicit, one-off and private on the lock screen; they are cancelled when the task is completed or changed. Native Messages remains user-sent; automatic SMS delivery is still simulated elsewhere in the prototype.
