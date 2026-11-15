@@ -6,7 +6,7 @@ struct EverydayRootView: View {
     var body: some View {
         Group {
             if let presentation { EverydaySessionView(store: presentation.profileStore, presentation: presentation) }
-            else { ProgressView("Opening Mind…") }
+            else { ProgressView("Opening MindMaintainer…") }
         }.task {
             if presentation == nil { presentation = BesidePresentation(profileStore: EverydayStore()) }
         }

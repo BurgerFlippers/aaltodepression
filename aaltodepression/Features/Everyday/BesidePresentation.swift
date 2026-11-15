@@ -161,7 +161,8 @@ final class BesidePresentation {
 
     func repairHealthAccessIfNeeded() async {
         let key = "mind.health.accessRepair.v1"
-        guard !defaults.bool(forKey: key), HealthKitSource.isAvailable else { return }
+        guard !defaults.bool(forKey: key), HealthKitSource.isAvailable,
+              profileStore.state.completedSetup, defaults.bool(forKey: "beside.health.connected") else { return }
         defaults.set(true, forKey: key)
         await connectHealth()
     }
@@ -200,11 +201,14 @@ final class BesidePresentation {
         var setup = backend.planner.setup
         setup.supportPreferences = preferences
         setup.helpConsent = .askEachTime
-        if preferences.automaticDemo, contactAgreed, let index = setup.contacts.firstIndex(where: { $0.id == preferences.personID }) {
-            setup.contacts[index].agreed = true
-            setup.contacts[index].canHelpWith.formUnion(preferences.topics.map(\.helpKind))
+        if preferences.automaticDemo, contactAgreed {
+            for topic in preferences.topics {
+                guard let index = setup.contacts.firstIndex(where: { $0.id == preferences.person(for: topic) }) else { continue }
+                setup.contacts[index].agreed = true
+                setup.contacts[index].canHelpWith.insert(topic.helpKind)
+            }
         }
-        backend.planner.updateSetup(setup)
+        if setup != backend.planner.setup { backend.planner.updateSetup(setup) }
     }
 
     func saveBoxes(_ value: [BesideHomeBox]) {

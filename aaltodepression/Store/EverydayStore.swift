@@ -51,7 +51,7 @@ final class EverydayStore {
             let data = try JSONEncoder().encode(state)
             try data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         } catch {
-            persistenceError = "Your changes could not be saved. Please try again before closing Beside."
+            persistenceError = "Your changes could not be saved. Please try again before closing MindMaintainer."
         }
     }
 

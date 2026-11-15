@@ -120,7 +120,7 @@ struct BesideDemoControlsView: View {
                     } label: { HStack { Text("Review Health access"); Spacer(); if connecting { ProgressView() } } }.disabled(connecting)
                     Button("Refresh readings") { Task { await presentation.refresh() } }.disabled(presentation.isRefreshing)
                     if let status = presentation.healthStatus { Text(status).font(.caption).foregroundStyle(.secondary) }
-                    Text("To change an earlier denial: Health → profile → Apps → Mind.").font(.caption).foregroundStyle(.secondary)
+                    Text("To change an earlier denial: Health → profile → Apps → MindMaintainer.").font(.caption).foregroundStyle(.secondary)
                 } header: { Text("Health connection") } footer: { Text("Nutrition and Mind entries are context only. Missing logs do not mean a skipped meal or low mood.") }
             }.navigationTitle("Health readings").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }

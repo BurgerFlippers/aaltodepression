@@ -76,11 +76,11 @@ struct BesideDemoScenarioView: View {
                     DisclosureGroup("One-time iPhone setup", isExpanded: $showSetup) {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("1. In Shortcuts, create a shortcut named Mind Demo SMS.")
-                            Text("2. Add Apple's Send Message action. Choose Konsta and the same number saved in Mind.")
+                            Text("2. Add Apple's Send Message action. Choose Konsta and the same number saved in MindMaintainer.")
                             Text("3. Use this fixed message:")
                             Text("Mind DEMO TEST: automatic support signal reached. No action needed.").textSelection(.enabled)
                             Text("4. Turn off Show When Run / Show Compose Sheet in that action. Allow the first iOS permission yourself.")
-                            Text("The shortcut must contain only that fixed test message and recipient. It receives no Health data or phone number from Mind.")
+                            Text("The shortcut must contain only that fixed test message and recipient. It receives no Health data or phone number from MindMaintainer.")
                             Button("Open Shortcuts") { if let url = URL(string: "shortcuts://") { openURL(url) } }
                             Toggle("Mind Demo SMS is configured for Konsta", isOn: $shortcutReady)
                                 .accessibilityIdentifier("demo-shortcut-ready")

@@ -34,7 +34,7 @@ nonisolated enum SidequestReminders {
         case denied, expired
         var errorDescription: String? {
             switch self {
-            case .denied: "Notifications are off for Mind. You can enable them in Settings."
+            case .denied: "Notifications are off for MindMaintainer. You can enable them in Settings."
             case .expired: "Choose a time later today. Your task is still saved."
             }
         }

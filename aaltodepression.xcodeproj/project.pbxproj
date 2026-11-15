@@ -365,7 +365,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Mind;
+				INFOPLIST_KEY_CFBundleDisplayName = MindMaintainer;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Counts how many events you have each day and how long they last. Titles and details are never read.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads sleep, movement, daylight and heart measurements to show changes in your daily rhythm. Logged nutrition, mood, mindfulness and existing questionnaire scores are shown as extra context when you choose to share them. Health readings stay on this phone.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Only used to save a practice breathing session when you ask for it in Settings.";
@@ -421,7 +421,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Mind;
+				INFOPLIST_KEY_CFBundleDisplayName = MindMaintainer;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Counts how many events you have each day and how long they last. Titles and details are never read.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads sleep, movement, daylight and heart measurements to show changes in your daily rhythm. Logged nutrition, mood, mindfulness and existing questionnaire scores are shown as extra context when you choose to share them. Health readings stay on this phone.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Only used to save a practice breathing session when you ask for it in Settings.";
@@ -474,7 +474,7 @@
 				DEVELOPMENT_TEAM = "$(BESIDE_DEVELOPMENT_TEAM)";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BesideWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Mind;
+				INFOPLIST_KEY_CFBundleDisplayName = MindMaintainer;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -502,7 +502,7 @@
 				DEVELOPMENT_TEAM = "$(BESIDE_DEVELOPMENT_TEAM)";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BesideWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Mind;
+				INFOPLIST_KEY_CFBundleDisplayName = MindMaintainer;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
