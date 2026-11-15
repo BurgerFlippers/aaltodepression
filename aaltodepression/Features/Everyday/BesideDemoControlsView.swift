@@ -1,7 +1,7 @@
 import SwiftUI
 import HealthKit
 
-/// Only requests the Health types used by the active interface. No write access.
+/// Only requests the Health types used by the active interface. Writes only State of Mind (the check-in answer).
 enum BesideHealthAccess {
     static func request() async throws {
         var types: Set<HKObjectType> = [HKQuantityType(.stepCount), HKQuantityType(.walkingSpeed),
@@ -15,7 +15,9 @@ enum BesideHealthAccess {
             types.insert(HKScoredAssessmentType(.PHQ9))
             types.insert(HKScoredAssessmentType(.GAD7))
         }
-        try await HKHealthStore().requestAuthorization(toShare: [], read: types)
+        var share: Set<HKSampleType> = []
+        if #available(iOS 18.0, *) { share.insert(HKObjectType.stateOfMindType()) }
+        try await HKHealthStore().requestAuthorization(toShare: share, read: types)
     }
 }
 

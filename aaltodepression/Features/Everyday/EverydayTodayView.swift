@@ -11,7 +11,10 @@ struct EverydayTodayView: View {
         NavigationStack {
             ScrollViewReader { proxy in
                 ScrollView {
-                    BesideSidequestView().id("daily-sidequest").padding(.horizontal, 16).padding(.vertical, 4)
+                    VStack(spacing: 16) {
+                        BesideSignalCheckInCard()
+                        BesideSidequestView().id("daily-sidequest")
+                    }.padding(.horizontal, 16).padding(.vertical, 4)
                 }
                 .refreshable { await presentation.refresh() }
                 .onChange(of: presentation.sidequestFocus) { _, _ in proxy.scrollTo("daily-sidequest", anchor: .top) }
