@@ -1,18 +1,15 @@
 import SwiftUI
 
 struct BesideForYouView: View {
-    @State private var checkIn = false
     @State private var reachOut = false
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    action("Check in", detail: "A moment to notice how you feel.", symbol: "heart.text.clipboard", color: EverydayStyle.lavender) { checkIn = true }
                     action("Reach out", detail: "A little company, in your own words.", symbol: "bubble.left.and.bubble.right", color: EverydayStyle.mint) { reachOut = true }
                 }.padding(20)
             }
             .background(EverydayStyle.paper).navigationTitle("For you")
-            .sheet(isPresented: $checkIn) { BesideCheckInView() }
             .sheet(isPresented: $reachOut) { EverydaySocialView() }
         }
     }
@@ -28,6 +25,6 @@ struct BesideForYouView: View {
                 Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(.secondary)
             }.padding(22).frame(maxWidth: .infinity, minHeight: 128, alignment: .leading)
                 .background(color, in: RoundedRectangle(cornerRadius: 22))
-        }.buttonStyle(.plain).accessibilityIdentifier(title == "Check in" ? "for-you-check-in" : "for-you-reach-out")
+        }.buttonStyle(.plain).accessibilityIdentifier("for-you-reach-out")
     }
 }
