@@ -3,16 +3,21 @@ import SwiftUI
 struct EverydayProfileView: View {
     @Environment(EverydayStore.self) private var store
     private var name: String { store.state.profile.name.trimmingCharacters(in: .whitespacesAndNewlines) }
+    @State private var showSupport = false
+    @State private var showSensors = false
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
+                    // Same settings and order as onboarding, so every "I'll do this later" step can be finished here.
                     section("Your name") { EverydayProfileFields() }
-                    section("Daily rhythm") { EverydayRoutineFields() }
                     section("Your people") {
                         EverydayContactsEditor().padding(18)
                             .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                     }
+                    collapsible("Support in advance", expanded: $showSupport) { EverydaySupportSetupFields() }
+                    section("Daily rhythm") { EverydayRoutineFields() }
+                    collapsible("Health, location and movement", expanded: $showSensors) { EverydaySensorSettings() }
                 }.padding(20)
             }.scrollDismissesKeyboard(.interactively).background(EverydayStyle.paper)
                 .mindHeader("You")
@@ -28,6 +33,14 @@ struct EverydayProfileView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title).font(.headline).accessibilityAddTraits(.isHeader)
             content()
+        }
+    }
+    private func collapsible<Content: View>(_ title: String, expanded: Binding<Bool>, @ViewBuilder content: () -> Content) -> some View {
+        let inner = content()
+        return DisclosureGroup(isExpanded: expanded) {
+            inner.padding(.top, 12)
+        } label: {
+            Text(title).font(.headline).foregroundStyle(.primary)
         }
     }
 }

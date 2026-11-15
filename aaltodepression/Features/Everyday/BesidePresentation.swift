@@ -30,8 +30,18 @@ final class BesidePresentation {
     var simulatedData: Bool = UserDefaults.standard.bool(forKey: "mind.simulatedData") {
         didSet { defaults.set(simulatedData, forKey: "mind.simulatedData"); Task { await refresh() } }
     }
-    /// Places needs location history; only the simulated history provides it for now.
-    private var usesLocation: Bool { simulatedData }
+    /// Apple Health is read only while this is on. Turning it off does not change Health's own permissions.
+    private(set) var healthConnected: Bool = UserDefaults.standard.bool(forKey: "beside.health.connected") {
+        didSet { defaults.set(healthConnected, forKey: "beside.health.connected") }
+    }
+    /// Visits recorded on this iPhone from install onward. Nothing about location leaves the phone.
+    private let location = LocationSource()
+    private(set) var locationEnabled: Bool = UserDefaults.standard.bool(forKey: "mind.location.enabled") {
+        didSet { defaults.set(locationEnabled, forKey: "mind.location.enabled") }
+    }
+    private(set) var locationAuthorized = false
+    /// Places needs location history: real visits when Location is on and allowed, or the simulated history.
+    private var usesLocation: Bool { simulatedData || (locationEnabled && locationAuthorized) }
 
     init(profileStore: EverydayStore, backend: Backend = Backend()) {
         self.profileStore = profileStore
@@ -43,6 +53,14 @@ final class BesidePresentation {
         profileStore.state.profile.weight = ""
         profileStore.state.profile.height = ""
         if let data = defaults.data(forKey: "beside.home.boxes"), let stored = try? JSONDecoder().decode([BesideHomeBox].self, from: data) { boxes = stored }
+        locationAuthorized = location.isEnabled
+        location.onChange = { [weak self] in
+            guard let self else { return }
+            self.locationAuthorized = self.location.isEnabled
+            Task { await self.refresh() }
+        }
+        location.wanted = locationEnabled
+        location.start()
     }
 
     var setupSignature: String {
@@ -106,7 +124,7 @@ final class BesidePresentation {
             // Read only what Health already permits. New unrequested types must not hide previously shared core readings.
             // Queries never open a permission prompt; missing or denied types return no usable rows.
             await liveBackend.permissions.refresh()
-            if HealthKitSource.isAvailable {
+            if HealthKitSource.isAvailable, healthConnected {
                 let keys = Set(BesideHealthMetric.allCases.map(\.key) + [F.activeHours, F.sleepEfficiency, F.awakeMin, F.deepMin, F.remMin, F.coreMin])
                 let report = await HealthKitSource().readReport(days: 120, latitude: 0, longitude: 0, keys: keys)
                 let read = report.table
@@ -130,6 +148,7 @@ final class BesidePresentation {
                     healthStatus = "No shared Health readings. Review Health access below; previously denied types must be enabled in Health."
                 }
             }
+            if locationEnabled, locationAuthorized { fresh.merge(location.table()) }
             if profileStore.state.motionEnabled == true {
                 fresh.merge(await MotionSource.read())
                 if let reading = profileStore.state.movementReading { fresh.set(F.steps, Day(reading.date), Double(reading.steps)) }
@@ -154,15 +173,37 @@ final class BesidePresentation {
         healthStatus = "Opening Apple Health permissions…"
         do {
             try await BesideHealthAccess.request()
-            defaults.set(true, forKey: "beside.health.connected")
+            healthConnected = true
             await refresh()
         } catch { healthStatus = "Health access couldn't be requested. Try again or check Settings." }
+    }
+
+    func disconnectHealth() {
+        healthConnected = false
+        healthStatus = "Apple Health is not read. To remove access completely, use Health → profile → Apps → MindMaintainer."
+        Task { await refresh() }
+    }
+
+    /// Asks for Location (While Using first; iOS may later offer Always) and starts recording visits.
+    func connectLocation() {
+        locationEnabled = true
+        location.wanted = true
+        location.requestPermission()
+        location.start()
+        locationAuthorized = location.isEnabled
+    }
+
+    func disconnectLocation() {
+        locationEnabled = false
+        location.wanted = false
+        location.stop()
+        Task { await refresh() }
     }
 
     func repairHealthAccessIfNeeded() async {
         let key = "mind.health.accessRepair.v1"
         guard !defaults.bool(forKey: key), HealthKitSource.isAvailable,
-              profileStore.state.completedSetup, defaults.bool(forKey: "beside.health.connected") else { return }
+              profileStore.state.completedSetup, healthConnected else { return }
         defaults.set(true, forKey: key)
         await connectHealth()
     }
@@ -198,6 +239,7 @@ final class BesidePresentation {
     }
 
     func saveSupportPreferences(_ preferences: SupportPreferences, contactAgreed: Bool) {
+        let backend = liveBackend
         var setup = backend.planner.setup
         setup.supportPreferences = preferences
         setup.helpConsent = .askEachTime
@@ -209,6 +251,21 @@ final class BesidePresentation {
             }
         }
         if setup != backend.planner.setup { backend.planner.updateSetup(setup) }
+    }
+
+    /// "I'll do this later" on the support step: no automatic support and no agreement until the person decides.
+    /// The step saves its defaults on appear, so undo what that marked.
+    func skipSupportSetup() {
+        let backend = liveBackend
+        var setup = backend.planner.setup
+        guard var preferences = setup.supportPreferences, preferences.automaticDemo else { return }
+        preferences.automaticDemo = false
+        let helpers = Set(preferences.topics.map { preferences.person(for: $0) })
+        for index in setup.contacts.indices where helpers.contains(setup.contacts[index].id) {
+            setup.contacts[index].agreed = false
+        }
+        setup.supportPreferences = preferences
+        backend.planner.updateSetup(setup)
     }
 
     func saveBoxes(_ value: [BesideHomeBox]) {

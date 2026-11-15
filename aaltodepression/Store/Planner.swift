@@ -251,6 +251,14 @@ final class Planner {
         return true
     }
 
+    @discardableResult func completeAnotherSidequest(_ id: String, on expectedDay: Day) -> Bool {
+        syncClock()
+        guard day == expectedDay, var offer = state.sidequests[day.jdn], offer.completeAnother(id) else { return false }
+        state.sidequests[day.jdn] = offer
+        save()
+        return true
+    }
+
     @discardableResult func setSidequestReminder(_ date: Date?, on expectedDay: Day) -> Bool {
         syncClock()
         guard !isDemo, day == expectedDay, var offer = state.sidequests[day.jdn],

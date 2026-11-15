@@ -81,7 +81,7 @@ nonisolated enum HealthWordFilter {
     }
 }
 
-extension Contact {
+nonisolated extension Contact {
     /// Greetings use only the first name: "Anna Virtanen" → "Anna".
     var firstName: String { name.split(separator: " ").first.map(String.init) ?? name }
 }

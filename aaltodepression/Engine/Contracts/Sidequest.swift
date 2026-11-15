@@ -56,6 +56,8 @@ nonisolated struct SidequestDay: Codable, Equatable, Sendable {
     var completedAt: Date?
     var reminderAt: Date?
     var selectionReadings: [String: Double]?
+    /// Extra options marked done after the chosen one was completed. Optional so older saved days still decode.
+    var alsoDoneIDs: [String]?
 
     var progress: SidequestProgress {
         guard selected != nil else { return .notSelected }
@@ -87,6 +89,15 @@ nonisolated struct SidequestDay: Codable, Equatable, Sendable {
         guard selected != nil, completedAt == nil else { return false }
         if startedAt == nil { startedAt = date }
         completedAt = date
+        return true
+    }
+
+    func isDone(_ id: String) -> Bool { (id == selectedID && completedAt != nil) || (alsoDoneIDs ?? []).contains(id) }
+
+    /// Doing more is optional: only after the chosen option is done, once per option.
+    @discardableResult mutating func completeAnother(_ id: String) -> Bool {
+        guard completedAt != nil, id != selectedID, options.contains(where: { $0.id == id }), !isDone(id) else { return false }
+        alsoDoneIDs = (alsoDoneIDs ?? []) + [id]
         return true
     }
 }

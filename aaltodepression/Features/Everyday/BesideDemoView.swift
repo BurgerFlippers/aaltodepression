@@ -46,7 +46,7 @@ struct BesideDemoView: View {
                     DisclosureGroup("Your chosen challenge") {
                         if let recorded, let quest = recorded.selected {
                             Text(BesideQuestStyle.brief(quest, smaller: recorded.useSmaller)).font(.headline).padding(.top, 10)
-                            Text("Selected · no completion tap needed").font(.caption).foregroundStyle(.secondary)
+                            Text(recorded.completedAt == nil ? "Selected · not marked done yet" : recorded.alsoDoneIDs.map { "Marked done · plus \($0.count) more" } ?? "Marked done").font(.caption).foregroundStyle(.secondary)
                             Text(presentation.sidequestEvidence(on: presentation.day)).font(.caption).foregroundStyle(.secondary)
                         } else { Text("No challenge selected for this day.").font(.subheadline).foregroundStyle(.secondary).padding(.top, 8) }
                     }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))

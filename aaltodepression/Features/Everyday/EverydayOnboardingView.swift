@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EverydayOnboardingView: View {
     @Environment(EverydayStore.self) private var store
+    @Environment(BesidePresentation.self) private var presentation
     @State private var page = 0
     var body: some View {
         NavigationStack {
@@ -47,7 +48,10 @@ struct EverydayOnboardingView: View {
                         if page < 5 { page += 1 } else { store.state.completedSetup = true; store.refreshDay() }
                     } label: { Text(page == 0 ? "Get started" : page == 5 ? "See my day" : "Continue") }
                         .buttonStyle(EverydayPrimaryButton()).accessibilityIdentifier("setup-next")
-                    if page == 1 || page == 2 || page == 3 { Button("I'll do this later") { page += 1 }.font(.subheadline.weight(.semibold)).frame(minHeight: 40) }
+                    if page == 1 || page == 2 || page == 3 { Button("I'll do this later") {
+                        if page == 3 { presentation.skipSupportSetup() }
+                        page += 1
+                    }.font(.subheadline.weight(.semibold)).frame(minHeight: 40) }
                 }.padding(.horizontal, 24).padding(.vertical, 12)
             }.background(EverydayStyle.paper)
             .toolbar {
@@ -123,14 +127,24 @@ struct EverydaySensorSettings: View {
     @State private var connecting = false
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Button {
-                connecting = true
-                Task { await presentation.connectHealth(); connecting = false }
-            } label: {
-                HStack { Text("Connect Apple Health"); Spacer(); if connecting { ProgressView() } else { Image(systemName: "heart.fill") } }
-            }.disabled(connecting).frame(minHeight: 44)
+            Toggle(isOn: Binding(get: { presentation.healthConnected }, set: { enabled in
+                if enabled {
+                    connecting = true
+                    Task { await presentation.connectHealth(); connecting = false }
+                } else { presentation.disconnectHealth() }
+            })) {
+                HStack(spacing: 8) { Text("Apple Health"); if connecting { ProgressView() } }
+            }.tint(EverydayStyle.orange).disabled(connecting).accessibilityIdentifier("sensor-health")
             Text("Share sleep, movement, daylight and heart measurements to compare daily changes with your own history. You choose what to share in Apple's permission sheet.").font(.footnote).foregroundStyle(.secondary)
             if let status = presentation.healthStatus { Text(status).font(.footnote).foregroundStyle(.secondary) }
+            Divider()
+            Toggle("Location", isOn: Binding(get: { presentation.locationEnabled }, set: { enabled in
+                if enabled { presentation.connectLocation() } else { presentation.disconnectLocation() }
+            })).tint(EverydayStyle.orange).accessibilityIdentifier("sensor-location")
+            Text("Counts time away from home and places visited, for Getting out. Collected on this iPhone from now on. Locations never leave this phone.").font(.footnote).foregroundStyle(.secondary)
+            if presentation.locationEnabled && !presentation.locationAuthorized {
+                Text("Location isn't allowed yet. If you declined, allow it in Settings → MindMaintainer → Location.").font(.footnote).foregroundStyle(EverydayStyle.muted)
+            }
             Divider()
             Toggle("iPhone movement", isOn: Binding(get: { store.state.motionEnabled == true }, set: { enabled in
                 if enabled { Task { await store.connectMotion() } } else { store.disconnectMotion() }
