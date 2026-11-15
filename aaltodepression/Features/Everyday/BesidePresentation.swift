@@ -356,6 +356,7 @@ final class BesidePresentation {
     func isEdited(_ metric: BesideHealthMetric, on day: Day? = nil) -> Bool { isDemoMode && demoEdits[(day ?? self.day).jdn]?[metric.key] != nil }
     func edit(_ metric: BesideHealthMetric, value: Double, on day: Day) {
         guard isDemoMode, metric.range.contains(value), value.isFinite, !metric.wholeNumber || value.rounded() == value else { return }
+        quickScenario = nil   // an advanced control in use takes over from the simple demo data
         demoEdits[day.jdn, default: [:]][metric.key] = value
         refreshSandbox(replaceSidequests: true)
     }
@@ -363,6 +364,7 @@ final class BesidePresentation {
     var hasDemoEdits: Bool { isDemoMode && (demoLoad != nil || !demoEdits.isEmpty) }
     func applyDemoLoad(_ load: Double) {
         guard isDemoMode, load.isFinite else { return }
+        quickScenario = nil   // an advanced control in use takes over from the simple demo data
         if demoLoad == nil {
             let demo = Backend(planner: Planner(store: .memory, setup: liveBackend.planner.setup, isDemo: true))
             sandbox = demo
@@ -380,6 +382,7 @@ final class BesidePresentation {
 
     func setScoreOverride(_ kind: ScoreKind, to value: Double?) {
         guard isDemoMode else { return }
+        quickScenario = nil   // an advanced control in use takes over from the simple demo data
         scoreOverrides[kind] = value.map { min(100, max(0, $0)) }
         refreshSandbox(replaceSidequests: true)
     }
