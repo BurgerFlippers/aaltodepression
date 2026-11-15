@@ -169,3 +169,11 @@ Choosing is the only required challenge interaction. Trends distinguishes a save
 Health reads now report query failures rather than silently presenting them as empty entries. Overlapping foreground refreshes are queued, and a wholly failed read preserves the last in-memory snapshot. The repair release requests the existing read permissions once; Trends also exposes manual access review and refresh. Previously denied types require enabling them in Health. Each date still shows only its own readings. Category scores are shown only for Sleep and Move when a baseline exists; other categories show context or missing-source status.
 
 Trends initially opens the most recent complete day with shared readings. Today remains available in its single native calendar and is labelled as a partial day. Both the main tab and reading editor show the selected date and how many measurement types have entries, so unrecorded nutrition or assessment types are not confused with a failed connection.
+
+### Trends and foreground message demo (2026-11-15)
+
+Trends shows daily balance and expandable Eat, Move, Sleep, Social and Medicine summaries. Health readings are in a separate sheet; the toolbar's Demo button opens the judging controls. For you now contains Check in and Reach out. The back arrow on a selected challenge returns to its three choices.
+
+For the message demo, open Trends → Demo, choose a saved test recipient and enable **Prepare a test request automatically**. Drag the slider towards Harder days and release it. The simulated input history is evaluated by the existing scoring and support rules; a support signal prepares one pending call request. On an iPhone, Messages opens for review and the person taps Send. Every test draft starts with **Mind DEMO TEST — no action needed**. Submission confirmation comes only from MessageUI, with a five-minute cooldown; delivery is not verified. Cancel/failure do not mark a send. Reset restores the real reading snapshot and clears the in-memory scenario. Health and live records remain unchanged.
+
+The current transport is native foreground Messages, not a background SMS service. A server sender still needs its endpoint and authentication contract. No service secrets belong in this repository.
