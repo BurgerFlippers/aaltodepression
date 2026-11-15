@@ -181,6 +181,86 @@ final class Planner {
 
     // MARK: - List
 
+    /// Freeze today's offers. An unchosen fallback can gain real Health context later.
+    func prepareSidequests(signal: StepDay?, replaceUnchosen: Bool = false) {
+        let offer = SidequestRules.make(day: day, signal: signal, hasMedication: !setup.medications.isEmpty)
+        if var existing = state.sidequests[day.jdn] {
+            let refreshed = existing.options.map { saved in SidequestRules.catalog.first { $0.id == saved.id } ?? saved }
+            if refreshed != existing.options {
+                existing.options = refreshed
+                state.sidequests[day.jdn] = existing
+                save()
+            }
+            guard existing.selectedID == nil, existing.completedAt == nil,
+                  replaceUnchosen || existing.signalDay == nil && offer.signalDay != nil,
+                  existing != offer else { return }
+        }
+        state.sidequests[day.jdn] = offer
+        save()
+    }
+
+    func chooseSidequest(_ id: String, on expectedDay: Day) {
+        syncClock()
+        guard day == expectedDay, var offer = state.sidequests[day.jdn] else { return }
+        offer.choose(id)
+        state.sidequests[day.jdn] = offer
+        save()
+    }
+
+    @discardableResult func startSidequest(_ id: String, smaller: Bool, on expectedDay: Day, observations: [String: Double] = [:]) -> Bool {
+        syncClock()
+        guard day == expectedDay, var offer = state.sidequests[day.jdn],
+              offer.completedAt == nil, offer.selectedID == nil || offer.selectedID == id else { return false }
+        if offer.selectedID == nil { offer.choose(id) }
+        offer.useSmaller = smaller || offer.startsSmall
+        guard offer.start(at: now) else { return false }
+        offer.selectionReadings = observations.filter { $0.value.isFinite }
+        state.sidequests[day.jdn] = offer
+        save()
+        return true
+    }
+
+    func shrinkSidequest(on expectedDay: Day) {
+        syncClock()
+        guard day == expectedDay, var offer = state.sidequests[day.jdn] else { return }
+        offer.makeSmaller()
+        state.sidequests[day.jdn] = offer
+        save()
+    }
+
+    func changeSidequest(on expectedDay: Day) {
+        syncClock()
+        guard day == expectedDay, var offer = state.sidequests[day.jdn], offer.completedAt == nil else { return }
+        offer.selectedID = nil
+        offer.startedAt = nil
+        offer.selectionReadings = nil
+        offer.useSmaller = false
+        offer.reminderAt = nil
+        if !isDemo { Task { await SidequestReminders.cancel(on: expectedDay) } }
+        state.sidequests[day.jdn] = offer
+        save()
+    }
+
+    @discardableResult func completeSidequest(on expectedDay: Day) -> Bool {
+        syncClock()
+        guard day == expectedDay, var offer = state.sidequests[day.jdn], offer.complete(at: now) else { return false }
+        offer.reminderAt = nil
+        state.sidequests[day.jdn] = offer
+        if !isDemo { Task { await SidequestReminders.cancel(on: expectedDay) } }
+        save()
+        return true
+    }
+
+    @discardableResult func setSidequestReminder(_ date: Date?, on expectedDay: Day) -> Bool {
+        syncClock()
+        guard !isDemo, day == expectedDay, var offer = state.sidequests[day.jdn],
+              offer.selected != nil, offer.completedAt == nil else { return false }
+        offer.reminderAt = date
+        state.sidequests[day.jdn] = offer
+        save()
+        return true
+    }
+
     func mark(_ item: PlanItem, _ status: ItemStatus) {
         syncClock()
         state.mark(item, status, at: now)
@@ -310,7 +390,7 @@ final class Planner {
             syncClock()
             rebuild(autoSend: false)
             save()
-        case .open:
+        case .open, .sidequest:
             break
         }
     }

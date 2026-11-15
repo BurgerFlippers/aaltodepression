@@ -8,6 +8,7 @@ nonisolated enum PlannerNotificationAction: Sendable, Equatable {
     case medicationTaken(medID: String, time: Int)
     case groceries(Bool)
     case open
+    case sidequest(day: Int)
 }
 
 /// Local notifications for the planner. No push (free personal team), at most a few a day.
@@ -85,6 +86,9 @@ nonisolated enum PlannerNotifications {
     /// Turns a notification response into an action. "Remind me later" is handled here and returns nil.
     static func action(for response: UNNotificationResponse) async -> PlannerNotificationAction? {
         let req = response.notification.request
+        if req.identifier.hasPrefix("beside.sidequest."), let day = req.content.userInfo["sidequestDay"] as? Int {
+            return .sidequest(day: day)
+        }
         guard req.identifier.hasPrefix(prefix) else { return nil }
         let info = req.content.userInfo
         switch response.actionIdentifier {

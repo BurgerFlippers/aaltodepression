@@ -71,7 +71,7 @@ enum BesideHealthMetric: String, CaseIterable, Identifiable {
         }
     }
     func text(_ value: Double?) -> String {
-        guard let value else { return "Not available" }
+        guard let value else { return "No entry for this day" }
         if self == .bedtime || self == .wake {
             let total = Int((value + (self == .bedtime ? 18 : 0)) * 60) % 1440
             return String(format: "%02d:%02d", total / 60, total % 60)
@@ -82,9 +82,9 @@ enum BesideHealthMetric: String, CaseIterable, Identifiable {
 }
 
 struct BesideDemoControlsView: View {
+    var embeddedInDemo = false
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("beside.demobar.visible") private var showDemobar = true
     @State private var editing: BesideHealthMetric?
     @State private var confirmReset = false
     @State private var connecting = false
@@ -95,14 +95,16 @@ struct BesideDemoControlsView: View {
         NavigationStack {
             Form {
                 Section {
-                    DatePicker("Day", selection: Binding(get: { presentation.day.start() }, set: { showDemobar = true; presentation.selectDay(Day($0)) }),
-                               in: (Calendar.current.date(byAdding: .day, value: -120, to: Date()) ?? Date())...Date(), displayedComponents: .date)
+                    LabeledContent("Readings for", value: presentation.day.start().formatted(date: .abbreviated, time: .omitted))
+                    Text(presentation.selectedDayAvailability).font(.caption).foregroundStyle(.secondary)
+                    if !embeddedInDemo { DatePicker("Day", selection: Binding(get: { presentation.day.start() }, set: { presentation.selectDay(Day($0)) }),
+                               in: (Calendar.current.date(byAdding: .day, value: -120, to: Date()) ?? Date())...Date(), displayedComponents: .date) }
                     if presentation.isDemoMode {
                         Label(presentation.hasDemoEdits ? "Demo copy · edited readings" : "Demo copy · real readings", systemImage: "testtube.2")
-                        Button("Return to live today") { presentation.returnToLive() }
+                        if !embeddedInDemo { Button("Return to live today") { presentation.returnToLive() } }
                     } else {
                         Label("Live today", systemImage: "waveform.path")
-                        Button("Edit today in demo") { showDemobar = true; presentation.selectDay(Day(Date())) }
+                        Button("Edit today in demo") { presentation.selectDay(Day(Date())) }
                     }
                 } header: { Text("Explore a day") } footer: { Text("Selecting a date opens a separate demo copy. Reading edits and task marks stay in that copy for this session. Apple Health and your live records stay unchanged.") }
                 ForEach(["Daily signals", "Nutrition", "Mind"], id: \.self) { group in
@@ -165,13 +167,13 @@ struct BesideDemoControlsView: View {
                                 if let request = presentation.backend.planner.demonstrateAutomaticSupport(automaticTopic) { automaticResult = "Simulated request recorded for \(request.contactName). Nothing was delivered." }
                                 else { automaticResult = "Check the selected support choice and recipient agreement. Existing frequency limits and cancellations still apply." }
                             }
-                        } else { Button("Open today's demo copy") { showDemobar = true; presentation.selectDay(Day(Date())) } }
+                        } else { Button("Open today's demo copy") { presentation.selectDay(Day(Date())) } }
                         if let automaticResult { Text(automaticResult).font(.footnote).foregroundStyle(.secondary) }
                         Button("View prototype requests") { showRequests = true }
                         Text("Separate from the first, user-led reach-out suggestion. This control advances the automatic-message scene in the demo copy only.").font(.footnote).foregroundStyle(.secondary)
                     }
                 }
-                Section { Toggle("Show Demobar", isOn: $showDemobar).onChange(of: showDemobar) { _, visible in if !visible { presentation.returnToLive() } } }
+
             }.navigationTitle("Demo controls").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
                 .sheet(isPresented: $showRequests) { BesideSupportRequestsView() }

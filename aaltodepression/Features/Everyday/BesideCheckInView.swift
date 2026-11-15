@@ -44,8 +44,8 @@ struct BesideCheckInView: View {
                     Button { selected.wrappedValue = index + 1 } label: {
                         VStack(spacing: 8) {
                             ZStack {
-                                Circle().fill(selected.wrappedValue == index + 1 ? EverydayStyle.ink : .white.opacity(0.75)).frame(width: 36, height: 36)
-                                Image(systemName: selected.wrappedValue == index + 1 ? "checkmark" : "circle").font(.subheadline.weight(.semibold)).foregroundStyle(selected.wrappedValue == index + 1 ? .white : EverydayStyle.ink)
+                                Circle().fill(selected.wrappedValue == index + 1 ? EverydayStyle.accent : EverydayStyle.surfaceRaised).frame(width: 36, height: 36)
+                                Image(systemName: selected.wrappedValue == index + 1 ? "checkmark" : "circle").font(.subheadline.weight(.semibold)).foregroundStyle(selected.wrappedValue == index + 1 ? .black : EverydayStyle.ink)
                             }
                             Text(label).font(.caption.weight(.semibold)).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                         }.frame(maxWidth: .infinity, minHeight: 70, alignment: .top).contentShape(Rectangle())

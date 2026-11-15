@@ -13,7 +13,7 @@ struct BesideHomeBox: Codable, Identifiable, Equatable, Hashable {
     static let medicine = Self(id: "medicine", title: "Medicine", colorIndex: 4)
     static let cleaning = Self(id: "cleaning", title: "Cleaning", colorIndex: 5)
     static let allCases: [Self] = [.eat, .move, .sleep, .social, .medicine, .cleaning]
-    static var colors: [Color] { [EverydayStyle.peach, EverydayStyle.mint, EverydayStyle.yellow, EverydayStyle.lavender, Color(red: 0.75, green: 0.85, blue: 0.98), Color(red: 0.97, green: 0.77, blue: 0.82)] }
+    static var colors: [Color] { [EverydayStyle.peach, EverydayStyle.mint, EverydayStyle.yellow, EverydayStyle.lavender, EverydayStyle.blue, EverydayStyle.surfaceRaised] }
     var subtitle: String {
         switch id {
         case "eat": "At least 3 meals"

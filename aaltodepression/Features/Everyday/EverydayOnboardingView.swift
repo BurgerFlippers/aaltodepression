@@ -13,7 +13,7 @@ struct EverydayOnboardingView: View {
                         case 0:
                             BesideLogoView().frame(width: 116, height: 116).padding(.top, 18)
                             EverydayHeading(eyebrow: "A little support, every day", title: "Your day.\nA little lighter.")
-                            Text("Beside prepares the small things, so you can start with just one.").font(.title3).foregroundStyle(EverydayStyle.muted)
+                            Text("Mind prepares the small things, so you can start with just one.").font(.title3).foregroundStyle(EverydayStyle.muted)
                             Text("Set up your support on a good day, so you have someone beside you when things feel harder.").foregroundStyle(EverydayStyle.muted)
                             Label("A couple of minutes to get started", systemImage: "clock").font(.subheadline)
                         case 1:
@@ -34,7 +34,7 @@ struct EverydayOnboardingView: View {
                         default:
                             BesideLogoView().frame(width: 88, height: 88)
                             EverydayHeading(eyebrow: "5 of 5 · Ready", title: "You don't have to do it all.")
-                            Text("Mark everyday things with one tap. Share Apple Health data if you would like to see available readings.").foregroundStyle(EverydayStyle.muted)
+                            Text("Share Apple Health data to guide three daily choices. Tap the challenge that feels right today.").foregroundStyle(EverydayStyle.muted)
                             EverydaySensorSettings()
                             EverydayNotice(text: "Reach out when you need a hand. Automatic support is shown separately in the demo; nothing is delivered automatically.")
                         }
@@ -50,7 +50,7 @@ struct EverydayOnboardingView: View {
                 }.padding(.horizontal, 24).padding(.vertical, 12)
             }.background(EverydayStyle.paper)
             .toolbar {
-                ToolbarItem(placement: .principal) { Text("Beside").font(.title2.bold()) }
+                ToolbarItem(placement: .principal) { Text("Mind").font(.title2.bold()) }
                 if page > 0 { ToolbarItem(placement: .topBarLeading) { Button { page -= 1 } label: { Image(systemName: "chevron.left") }.accessibilityLabel("Previous step") } }
                 ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) } }
             }.navigationBarTitleDisplayMode(.inline)
@@ -66,7 +66,7 @@ struct EverydayProfileFields: View {
             Text("First name")
             TextField("Your name", text: $store.state.profile.name)
                 .multilineTextAlignment(.trailing).textContentType(.givenName)
-        }.padding(16).background(.white, in: RoundedRectangle(cornerRadius: 18))
+        }.padding(16).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
     }
 }
 
@@ -79,7 +79,7 @@ struct EverydayRoutineFields: View {
             timeRow(.wake)
             Divider().padding(.leading, 16)
             timeRow(.bed)
-        }.background(.white, in: RoundedRectangle(cornerRadius: 18))
+        }.background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
         .sheet(item: $timeField) { field in
             NavigationStack {
                 DatePicker(field.title, selection: timeBinding(field), displayedComponents: .hourAndMinute)
@@ -125,7 +125,7 @@ struct EverydaySensorSettings: View {
             Toggle("iPhone movement", isOn: Binding(get: { store.state.motionEnabled == true }, set: { enabled in
                 if enabled { Task { await store.connectMotion() } } else { store.disconnectMotion() }
             })).tint(EverydayStyle.orange)
-            Text("Uses your iPhone steps. You can also mark movement yourself.").font(.footnote).foregroundStyle(.secondary)
+            Text("Optional iPhone steps help guide your daily task choices.").font(.footnote).foregroundStyle(.secondary)
             Divider()
             Button {
                 connecting = true
@@ -136,6 +136,6 @@ struct EverydaySensorSettings: View {
             Text("Share sleep, movement, daylight and heart measurements to compare daily changes with your own history. You choose what to share in Apple's permission sheet.").font(.footnote).foregroundStyle(.secondary)
             if let status = presentation.healthStatus { Text(status).font(.footnote).foregroundStyle(.secondary) }
             if let status = store.sensorStatus { Text(status).font(.footnote).foregroundStyle(EverydayStyle.muted) }
-        }.padding(18).background(.white, in: RoundedRectangle(cornerRadius: 18))
+        }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
     }
 }

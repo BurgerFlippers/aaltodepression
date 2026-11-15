@@ -30,7 +30,7 @@ struct BesideDemoBar: View {
                         ], startPoint: .leading, endPoint: .trailing)).frame(height: 8).frame(height: 18)
                         if let position = presentation.indicatorPosition {
                             Circle().fill(.white)
-                                .overlay { Circle().strokeBorder(EverydayStyle.ink, style: StrokeStyle(lineWidth: 3, dash: presentation.signalHasBaseline ? [] : [3, 2])) }
+                                .overlay { Circle().strokeBorder(Color.black, style: StrokeStyle(lineWidth: 3, dash: presentation.signalHasBaseline ? [] : [3, 2])) }
                                 .frame(width: 18, height: 18)
                                 .offset(x: (geometry.size.width - 18) * position)
                         }
@@ -42,32 +42,33 @@ struct BesideDemoBar: View {
                         Text("More support")
                     }.font(.caption2).foregroundStyle(.secondary)
                 }.contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityHint("Opens day selection and editable demo statistics")
+            }.buttonStyle(.plain).accessibilityHint("Opens editable readings for this day")
 
         }.foregroundStyle(EverydayStyle.ink).padding(.horizontal, 16).padding(.vertical, 8)
             .frame(maxWidth: .infinity).background(EverydayStyle.paper)
             .overlay(alignment: .bottom) { Divider() }
-            .sheet(isPresented: $details) { BesideDemoControlsView() }
+            .sheet(isPresented: $details) { BesideDemoControlsView(embeddedInDemo: true) }
     }
 }
 
-/// Day selection lives below the Routine navigation bar, separate from the judging overlay.
+/// The compact day selector is only used inside the Demo tab.
 struct BesideDayPicker: View {
     @Environment(BesidePresentation.self) private var presentation
     var body: some View {
             HStack(spacing: 5) {
-                Button { presentation.selectDay(presentation.day - 1) } label: { Image(systemName: "chevron.left").frame(width: 28, height: 32) }
+                Button { presentation.selectDay(presentation.day - 1) } label: { Image(systemName: "chevron.left").frame(width: 32, height: 44) }
                     .disabled(presentation.day <= Day(Date()) - 120).accessibilityLabel("Previous day")
                 ForEach(Day.range(max(presentation.day - 4, Day(Date()) - 120), presentation.day + 1), id: \.jdn) { day in
                     Button { presentation.selectDay(day) } label: {
                         Text(day.start().formatted(.dateTime.day().month(.abbreviated))).font(.caption2.weight(.semibold))
-                            .frame(maxWidth: .infinity, minHeight: 32)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                             .background(day == presentation.day ? EverydayStyle.mint : .clear, in: Capsule())
                     }.buttonStyle(.plain).accessibilityAddTraits(day == presentation.day ? .isSelected : [])
                 }
-                Button { presentation.selectDay(presentation.day + 1) } label: { Image(systemName: "chevron.right").frame(width: 28, height: 32) }
+                Button { presentation.selectDay(presentation.day + 1) } label: { Image(systemName: "chevron.right").frame(width: 32, height: 44) }
                     .disabled(presentation.day >= Day(Date())).accessibilityLabel("Next day")
             }
+        .buttonStyle(.borderless)
         .foregroundStyle(EverydayStyle.ink)
         .padding(.horizontal, 16).padding(.vertical, 8)
         .background(EverydayStyle.paper)
@@ -97,7 +98,7 @@ struct BesideWinsView: View {
             }
             Spacer(minLength: 0)
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
-            .background(.white, in: RoundedRectangle(cornerRadius: 20))
+            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20))
             .animation(reduceMotion ? nil : .spring(duration: 0.4), value: presentation.winCount)
             .sensoryFeedback(.success, trigger: feedback)
             .onChange(of: presentation.winCount) { old, new in if new > old { feedback.toggle() } }

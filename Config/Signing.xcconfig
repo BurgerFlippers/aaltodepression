@@ -1,0 +1,6 @@
+// Shared identity for the app, its widget and their private App Group.
+BESIDE_HOST_BUNDLE_IDENTIFIER = fi.aaltodepression
+BESIDE_DEVELOPMENT_TEAM = 45DJ55R84X
+
+// Optional developer-specific overrides. This file is intentionally ignored by Git.
+#include? "LocalSigning.xcconfig"

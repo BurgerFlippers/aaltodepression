@@ -11,7 +11,7 @@ struct EverydaySupportSetupFields: View {
     private var canSave: Bool { selected != nil && !preferences.topics.isEmpty && (!preferences.automaticDemo || agreement) }
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Choose practical support you would welcome. Beside first helps you reach out yourself.").foregroundStyle(.secondary)
+            Text("Choose practical support you would welcome. Mind first helps you reach out yourself.").foregroundStyle(.secondary)
             VStack(spacing: 0) {
                 ForEach(SupportTopic.allCases) { topic in
                     Toggle(topic.title, isOn: Binding(get: { preferences.topics.contains(topic) }, set: { enabled in
@@ -30,7 +30,7 @@ struct EverydaySupportSetupFields: View {
                         ForEach(contacts) { Text($0.name).tag($0.id) }
                     }.pickerStyle(.menu)
                 }
-            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(.white, in: RoundedRectangle(cornerRadius: 20))
+            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20))
             DisclosureGroup("Automatic support (optional demo)", isExpanded: $automaticDetails) {
                 VStack(alignment: .leading, spacing: 14) {
                     Text("A separate demo shows an agreed practical request being recorded for your person. It never delivers a real message.").font(.subheadline).foregroundStyle(.secondary)

@@ -8,6 +8,8 @@ final class BesidePresentation {
     private(set) var backend: Backend
     let liveBackend: Backend
     private var sandbox: Backend?
+    private(set) var sidequestFocus = 0
+    private(set) var messageFocus = 0
     private(set) var selectedDay: Day?
     private(set) var boxes: [BesideHomeBox] = BesideHomeBox.allCases
     private(set) var healthHistory: [StepDay] = []
@@ -17,6 +19,7 @@ final class BesidePresentation {
     let profileStore: EverydayStore
     private(set) var isRefreshing = false
     private var table = FeatureTable()
+    private var pendingSensorRefresh = false
     private let defaults = UserDefaults.standard
 
     init(profileStore: EverydayStore, backend: Backend = Backend()) {
@@ -71,26 +74,47 @@ final class BesidePresentation {
     }
 
     func refresh(readSensors: Bool = true) async {
-        guard !isRefreshing else { return }
+        guard !isRefreshing else { pendingSensorRefresh = pendingSensorRefresh || readSensors; return }
         isRefreshing = true
-        defer { isRefreshing = false }
+        defer {
+            isRefreshing = false
+            if pendingSensorRefresh {
+                pendingSensorRefresh = false
+                Task { await self.refresh() }
+            }
+        }
         profileStore.refreshDay()
         syncSetup()
         if readSensors {
             await profileStore.refreshSensors()
             var fresh = FeatureTable()
+            var allHealthQueriesFailed = false
             // Read only what Health already permits. New unrequested types must not hide previously shared core readings.
             // Queries never open a permission prompt; missing or denied types return no usable rows.
             await liveBackend.permissions.refresh()
             if HealthKitSource.isAvailable {
                 let keys = Set(BesideHealthMetric.allCases.map(\.key) + [F.activeHours, F.sleepEfficiency, F.awakeMin, F.deepMin, F.remMin, F.coreMin])
-                let read = await HealthKitSource().read(days: 120, latitude: 0, longitude: 0, keys: keys)
+                let report = await HealthKitSource().readReport(days: 120, latitude: 0, longitude: 0, keys: keys)
+                let read = report.table
+                #if DEBUG
+                print("Mind Health: \(read.keys.count) feature types returned; \(report.errors.count) query failures.")
+                print("Mind Health availability: today=\(Day(Date())); selected=\(day); first=\(read.firstDay?.description ?? "none"); latest=\(read.lastDay?.description ?? "none"); todayTypes=\(read.numbers.values.filter { $0[Day(Date())] != nil }.count); yesterdayTypes=\(read.numbers.values.filter { $0[Day(Date()) - 1] != nil }.count)")
+                if let error = report.errors.first { print("Mind Health query error: \(error)") }
+                #endif
+                allHealthQueriesFailed = read.keys.isEmpty && !report.errors.isEmpty
                 // No real location is available here: discard location-dependent daylight estimates.
                 for (key, series) in read.numbers where keys.contains(key) {
                     for (day, value) in series { fresh.set(key, day, value) }
                 }
                 healthReadAt = Date()
-                healthStatus = fresh.keys.isEmpty ? "No shared Health readings yet. Check the types shared with Beside in Apple Health." : "Shared Health readings refreshed."
+                let latest = fresh.lastDay.map { " Latest shared reading: \($0.start().formatted(date: .abbreviated, time: .omitted))." } ?? ""
+                if let error = report.errors.first {
+                    healthStatus = "\(fresh.keys.isEmpty ? "No readings returned." : "Shared readings refreshed.")\(latest) Some types could not be read: \(error). Review access, then refresh while your iPhone is unlocked."
+                } else if !fresh.keys.isEmpty {
+                    healthStatus = "Health refreshed.\(latest) Missing days have no shared entries."
+                } else {
+                    healthStatus = "No shared Health readings. Review Health access below; previously denied types must be enabled in Health."
+                }
             }
             if profileStore.state.motionEnabled == true {
                 fresh.merge(await MotionSource.read())
@@ -99,13 +123,17 @@ final class BesidePresentation {
             if fresh.value(F.sleepHours, Day(Date())) == nil, profileStore.state.healthSleepEnabled == true, let sleep = profileStore.state.sleepReading {
                 fresh.set(F.sleepHours, Day(sleep.end), Double(sleep.minutes) / 60)
             }
-            table = fresh
+            // A locked Health store must not erase the last successful in-memory snapshot.
+            // A successful empty read still clears it, including after permissions are revoked.
+            if allHealthQueriesFailed { table.merge(fresh) } else { table = fresh }
         }
         let inputs = planningTable(table)
         let history = StepEngine.run(table: inputs, through: Day(Date()), homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
         liveBackend.refresh(table: inputs, history: history, locationEnabled: false)
         if selectedDay != nil { refreshSandbox() } else { healthHistory = history }
         if selectedDay == nil { migrateMarksIfNeeded() }
+        backend.planner.prepareSidequests(signal: healthSignal)
+        syncSidequestWidget()
     }
 
     func connectHealth() async {
@@ -115,6 +143,43 @@ final class BesidePresentation {
             defaults.set(true, forKey: "beside.health.connected")
             await refresh()
         } catch { healthStatus = "Health access couldn't be requested. Try again or check Settings." }
+    }
+
+    func repairHealthAccessIfNeeded() async {
+        let key = "mind.health.accessRepair.v1"
+        guard !defaults.bool(forKey: key), HealthKitSource.isAvailable else { return }
+        defaults.set(true, forKey: key)
+        await connectHealth()
+    }
+
+    @discardableResult func selectSidequest(_ id: String, smaller: Bool, on day: Day) -> Bool {
+        let observations = Dictionary(uniqueKeysWithValues: [F.steps, F.daylightMin, F.dietaryEnergy].compactMap { key in
+            table.value(key, day).map { (key, $0) }
+        })
+        return backend.planner.startSidequest(id, smaller: smaller, on: day, observations: observations)
+    }
+
+    func sidequestEvidence(on day: Day) -> String {
+        SidequestEvidenceRules.description(offer: liveBackend.planner.state.sidequests[day.jdn], on: day, readings: table)
+    }
+
+    func categoryStatus(_ category: SidequestCategory) -> String {
+        let score: Double?
+        switch category {
+        case .sleep: score = healthSignal?.result.scores[.sleep]
+        case .movement: score = healthSignal?.result.scores[.movement]
+        default: score = nil
+        }
+        if let score, signalHasBaseline {
+            return "\(score < 40 ? "More support" : score < 70 ? "Some change" : "Near your usual") · \(Int(score.rounded()))/100"
+        }
+        switch category {
+        case .nutrition: return reading(.foodEnergy) == nil ? "No shared food logs" : "Nutrition logged · not scored"
+        case .social: return "No passive social data"
+        case .medicine: return "Not scored · no dose data connected"
+        case .sleep: return reading(.sleep) == nil ? "No shared sleep reading" : "Learning your usual"
+        case .movement: return reading(.steps) == nil ? "No shared movement reading" : "Learning your usual"
+        }
     }
 
     func saveSupportPreferences(_ preferences: SupportPreferences, contactAgreed: Bool) {
@@ -133,10 +198,22 @@ final class BesidePresentation {
         if let data = try? JSONEncoder().encode(value) { defaults.set(data, forKey: "beside.home.boxes") }
     }
 
+    /// Avoid opening a mostly empty day immediately after midnight.
+    var preferredTrendDay: Day {
+        let lastComplete = Day(Date()) - 1
+        return table.numbers.values.compactMap { $0.keys.filter { $0 <= lastComplete }.max() }.max() ?? lastComplete
+    }
+
+    var selectedDayAvailability: String {
+        let count = BesideHealthMetric.allCases.filter { reading($0) != nil }.count
+        if day == Day(Date()) { return "Today is still in progress · \(count) of \(BesideHealthMetric.allCases.count) readings recorded so far." }
+        return "\(count) of \(BesideHealthMetric.allCases.count) readings shared for this day. Not every device or tracker records every type."
+    }
+
     var isDemoMode: Bool { selectedDay != nil }
-    func selectDay(_ day: Day) {
+    func selectDay(_ day: Day, refreshSnapshot: Bool = false) {
         guard day >= Day(Date()) - 120, day <= Day(Date()) else { return }
-        if sandbox == nil {
+        if sandbox == nil || refreshSnapshot {
             // Copy the real planner snapshot via its public store API. The copy is in memory;
             // edits never reach the live planner or write back to Apple Health.
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("beside-preview-\(UUID().uuidString).json")
@@ -145,6 +222,9 @@ final class BesidePresentation {
             sandbox = Backend(planner: Planner(store: temporary, isDemo: true))
             temporary.erase()
         }
+        #if DEBUG
+        print("Mind Trends day: \(day); availableTypes=\(table.numbers.values.filter { $0[day] != nil }.count)")
+        #endif
         selectedDay = day
         backend = sandbox!
         refreshSandbox()
@@ -154,6 +234,7 @@ final class BesidePresentation {
         selectedDay = nil
         backend = liveBackend
         healthHistory = StepEngine.run(table: planningTable(table), through: Day(Date()), homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
+        liveBackend.planner.prepareSidequests(signal: healthSignal)
     }
 
     /// Nutrition and Mind are user-requested context, not new automatic scoring inputs.
@@ -179,15 +260,16 @@ final class BesidePresentation {
     func edit(_ metric: BesideHealthMetric, value: Double, on day: Day) {
         guard isDemoMode, metric.range.contains(value), value.isFinite, !metric.wholeNumber || value.rounded() == value else { return }
         demoEdits[day.jdn, default: [:]][metric.key] = value
-        refreshSandbox()
+        refreshSandbox(replaceSidequests: true)
     }
-    func resetEdits(on day: Day) { demoEdits.removeValue(forKey: day.jdn); refreshSandbox() }
+    func resetEdits(on day: Day) { demoEdits.removeValue(forKey: day.jdn); refreshSandbox(replaceSidequests: true) }
     var hasDemoEdits: Bool { isDemoMode && !demoEdits.isEmpty }
-    private func refreshSandbox() {
+    private func refreshSandbox(replaceSidequests: Bool = false) {
         guard let selectedDay, let sandbox else { return }
         let inputs = planningTable(displayedTable.truncated(through: selectedDay))
         healthHistory = StepEngine.run(table: inputs, through: selectedDay, homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
         sandbox.refresh(day: selectedDay, minutes: 18 * 60, table: inputs, history: healthHistory, locationEnabled: false)
+        sandbox.planner.prepareSidequests(signal: healthSignal, replaceUnchosen: replaceSidequests)
     }
 
     // Live mode uses a complete day; the demo explicitly evaluates the selected day.
@@ -204,11 +286,27 @@ final class BesidePresentation {
     }
 
     func handleNotification(_ action: PlannerNotificationAction, at date: Date) {
+        if case .sidequest = action {
+            returnToLive()
+            sidequestFocus += 1
+            return
+        }
         liveBackend.planner.handle(action, deliveredAt: date)
+    }
+
+    func openMessagesFromLink() {
+        openSidequest()
+        messageFocus += 1
+    }
+
+    func openSidequest() {
+        returnToLive()
+        sidequestFocus += 1
     }
 
     var day: Day { selectedDay ?? Day(Date()) }
     var checkIn: CheckIn? { backend.planner.state.checkIn(on: day) }
+    var sidequest: SidequestDay? { backend.planner.state.sidequests[day.jdn] }
 
     func item(for box: BesideHomeBox) -> PlanItem {
         if box == .sleep {

@@ -2,31 +2,34 @@ import SwiftUI
 
 struct EverydayProfileView: View {
     @Environment(EverydayStore.self) private var store
-    @State private var showDemo = false
+    @State private var showCheckIn = false
+    @State private var showMessages = false
     private var name: String { store.state.profile.name.trimmingCharacters(in: .whitespacesAndNewlines) }
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
+                    section("A moment for you") {
+                        Button("Check in", systemImage: "heart.text.clipboard") { showCheckIn = true }.buttonStyle(.bordered)
+                        Button("Reach out", systemImage: "message") { showMessages = true }.buttonStyle(.bordered)
+                    }
                     section("Your name") { EverydayProfileFields() }
                     section("Daily rhythm") { EverydayRoutineFields() }
                     section("Your people") {
                         EverydayContactsEditor().padding(18)
-                            .background(.white, in: RoundedRectangle(cornerRadius: 18))
+                            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
                     }
                 }.padding(20)
             }.scrollDismissesKeyboard(.interactively).background(EverydayStyle.paper)
                 .navigationTitle(name.isEmpty ? "Your profile" : name)
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button { showDemo = true } label: { Image(systemName: "slider.horizontal.3") }.accessibilityLabel("Demo controls")
-                    }
                     ToolbarItemGroup(placement: .keyboard) {
                         Spacer()
                         Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
                     }
                 }
-                .sheet(isPresented: $showDemo) { BesideDemoControlsView() }
+                .sheet(isPresented: $showCheckIn) { BesideCheckInView() }
+                .sheet(isPresented: $showMessages) { EverydaySocialView() }
         }
     }
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -38,26 +41,18 @@ struct EverydayProfileView: View {
 }
 
 struct EverydayAboutView: View {
-    #if DEBUG
-    @AppStorage("beside.demobar.visible") private var showDemobar = true
-    #else
-    @AppStorage("beside.demobar.visible") private var showDemobar = false
-    #endif
     var body: some View {
         Form {
             Section {
                 BesideLogoView().frame(width: 64, height: 64).frame(maxWidth: .infinity).padding(.vertical, 12)
-                Text("Beside · Junction 2026").font(.headline)
+                Text("Mind · Junction 2026").font(.headline)
                 Text("Your profile and the people you choose stay on this phone.")
             }
-            Section {
-                Toggle("Show Demobar", isOn: $showDemobar)
-            } header: { Text("Judging view") } footer: { Text("Visualise the actual data and backend support suggestions. Hiding the bar does not stop the backend.") }
             Section("This prototype") {
-                Text("You can mark everyday things yourself. Optional iPhone movement and Apple Health sleep data can fill in some things for you.")
+                Text("Shared Health readings guide three daily task choices. Tap one small step or invite someone along.")
                 Text("Background support requests are local demo drafts for now. They are not sent to anyone automatically.")
             }
-        }.navigationTitle("About Beside").navigationBarTitleDisplayMode(.inline)
+        }.navigationTitle("About Mind").navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -91,7 +86,7 @@ struct EverydayHelpView: View {
                                         Text(person.role.title).font(.subheadline)
                                     }
                                     Spacer()
-                                    Image(systemName: "phone.fill").font(.title2).padding(12).background(.white.opacity(0.7), in: Circle())
+                                    Image(systemName: "phone.fill").font(.title2).padding(12).background(EverydayStyle.surface.opacity(0.7), in: Circle())
                                 }.padding(20).frame(maxWidth: .infinity, minHeight: 104)
                                     .background(person.role == .close ? EverydayStyle.mint : EverydayStyle.lavender, in: RoundedRectangle(cornerRadius: 24))
                             }.buttonStyle(.plain).accessibilityLabel("Call \(person.name), \(person.role.title)")
@@ -111,7 +106,7 @@ struct EverydayHelpView: View {
                                     Text("Confidential phone support, 24/7").font(.caption).foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(.white, in: RoundedRectangle(cornerRadius: 20))
+                            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20))
                         }.buttonStyle(.plain).accessibilityIdentifier("mieli-call")
                         Link("About the helpline", destination: URL(string: "https://mieli.fi/tukea-ja-apua/kriisipuhelin?oai_link_source=model_response_hotline")!).font(.footnote)
                     }

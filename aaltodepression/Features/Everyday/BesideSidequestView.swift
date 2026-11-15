@@ -1,0 +1,185 @@
+import SwiftUI
+
+/// The entire tile is the choice. No navigation or secondary controls inside a challenge.
+struct BesideSidequestView: View {
+    @Environment(BesidePresentation.self) private var presentation
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var showReason = false
+    @State private var showMessages = false
+    @State private var showReminder = false
+    @State private var celebration = false
+
+    var body: some View {
+        if let offer = presentation.sidequest {
+            let day = presentation.day
+            VStack(spacing: 12) {
+                HStack {
+                    Text(offer.selected == nil ? "Choose one for today" : "Your choice for today")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                    Spacer()
+                    Button { showReason = true } label: { Image(systemName: "info.circle").frame(width: 44, height: 44) }
+                        .accessibilityLabel("Why these challenges?")
+                    if offer.selected != nil, offer.completedAt == nil {
+                        Menu {
+                            Button("Choose another challenge") { presentation.backend.planner.changeSidequest(on: day) }
+                        } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
+                            .accessibilityLabel("Challenge options")
+                    }
+                }
+                if let quest = offer.selected {
+                    let index = offer.options.firstIndex(where: { $0.id == quest.id }) ?? 0
+                    MindChallengeTile(quest: quest, smaller: offer.useSmaller, index: index)
+                    Text("A good choice. One small step is enough.")
+                        .font(.subheadline).foregroundStyle(EverydayStyle.accent)
+                        .multilineTextAlignment(.center).accessibilityIdentifier("challenge-encouragement")
+                    HStack(spacing: 24) {
+                        if quest.canInvite { Button("Invite someone") { showMessages = true } }
+                        Button("Remind me") { showReminder = true }
+                    }.font(.subheadline).padding(.top, 4)
+                } else {
+                    ForEach(Array(offer.options.enumerated()), id: \.element.id) { index, quest in
+                        choice(quest, smaller: offer.startsSmall, index: index, day: day)
+                    }
+                }
+            }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: offer.selectedID)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: offer.completedAt != nil)
+            .sensoryFeedback(.success, trigger: celebration)
+            .alert("Why these challenges?", isPresented: $showReason) { Button("Done", role: .cancel) {} } message: { Text(offer.reason) }
+            .sheet(isPresented: $showMessages) { EverydaySocialView(sidequest: offer.selected, smallerQuest: offer.useSmaller) }
+            .sheet(isPresented: $showReminder) { BesideSidequestReminderView(day: day) }
+        }
+    }
+
+    private func choice(_ quest: Sidequest, smaller: Bool, index: Int, day: Day) -> some View {
+        Button {
+            if presentation.selectSidequest(quest.id, smaller: smaller, on: day) { celebration.toggle() }
+        } label: { MindChallengeTile(quest: quest, smaller: smaller, index: index) }
+            .buttonStyle(.plain)
+            .accessibilityLabel(BesideQuestStyle.brief(quest, smaller: smaller))
+            .accessibilityHint("Double-tap to choose this challenge")
+            .accessibilityIdentifier("challenge-choice-\(quest.id)")
+    }
+}
+
+private struct MindChallengeTile: View {
+    let quest: Sidequest
+    let smaller: Bool
+    let index: Int
+    @ScaledMetric(relativeTo: .headline) private var symbolSize = 34
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: BesideQuestStyle.visual(quest))
+                .font(.system(size: symbolSize, weight: .regular)).symbolRenderingMode(.hierarchical)
+                .foregroundStyle(EverydayStyle.accent).frame(minHeight: 40).accessibilityHidden(true)
+            Text(BesideQuestStyle.brief(quest, smaller: smaller))
+                .font(.headline).foregroundStyle(.primary).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 24).padding(.vertical, 18)
+        .frame(maxWidth: .infinity, minHeight: 150)
+        .background(BesideQuestStyle.cardColor(index), in: RoundedRectangle(cornerRadius: 22))
+        .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(EverydayStyle.accent.opacity(0.12), lineWidth: 1) }
+        .contentShape(RoundedRectangle(cornerRadius: 22))
+    }
+}
+
+nonisolated enum BesideQuestStyle {
+    static func brief(_ quest: Sidequest, smaller: Bool) -> String {
+        let words: (String, String)
+        switch quest.id {
+        case "colour-walk": words = ("Find three colours on a short walk.", "Find one colourful thing nearby.")
+        case "one-song": words = ("Move gently to a favourite song.", "Try one small movement to music.")
+        case "new-view": words = ("Take a short walk somewhere nearby.", "Move to a different spot in your room.")
+        case "park-explorer": words = ("Spend a little time in a nearby park.", "Step outside for a breath of fresh air.")
+        case "favourite-route": words = ("Walk or roll a familiar route.", "Move towards your front door.")
+        case "stretch-break": words = ("Gently stretch your shoulders, hands or feet.", "Relax your shoulders once.")
+        case "tomorrow-you": words = ("Put one thing ready for tomorrow morning.", "Put your morning mug within reach.")
+        case "soft-landing": words = ("Dim the lights and unwind before bed.", "Dim one light before bed.")
+        case "morning-light": words = ("Take a little daylight break outside.", "Open the curtains and sit by a window.")
+        case "cosy-corner": words = ("Clear one small space beside your bed.", "Move one thing from your bedside.")
+        case "quiet-song": words = ("Listen to a calm song before bed.", "Listen to a little calm music.")
+        case "morning-plan": words = ("Leave a note with one easy morning action.", "Choose one easy thing to do tomorrow.")
+        case "easy-snack": words = ("Have two easy foods you enjoy together.", "Put a familiar snack within reach.")
+        case "simple-meal": words = ("Make an easy meal, like soup and bread.", "Choose a ready meal or leftovers.")
+        case "food-favour": words = ("Ask someone to share an easy meal.", "Invite someone to share a snack.")
+        case "easy-breakfast": words = ("Put an easy breakfast ready for tomorrow.", "Choose a familiar breakfast food.")
+        case "food-check": words = ("Find one easy meal you have at home.", "Look in one cupboard for a snack.")
+        case "shared-meal": words = ("Invite a friend to share a simple meal.", "Ask someone about eating together.")
+        case "send-song": words = ("Send a friend a song that made you think of them.", "Send a friend a quick hello.")
+        case "tea-invite": words = ("Invite a friend over for a cup of tea.", "Tell a friend you would like to see them.")
+        case "walk-talk": words = ("Ask a friend to join you for a short walk.", "Ask a friend for a quick call.")
+        case "send-photo": words = ("Send a friend a photo of something you noticed.", "Send a friend one emoji.")
+        case "thank-person": words = ("Thank someone for one small thing.", "Send a quick thank-you.")
+        case "voice-hello": words = ("Send a friend a short voice hello.", "Tell someone you are thinking of them.")
+        case "medicine-reminder": words = ("Check your existing medication reminder.", "Check the time of your next reminder.")
+        case "medicine-stock": words = ("Check whether your medication needs a refill.", "Find your regular medication supply.")
+        case "pharmacy-company": words = ("Ask someone to join a needed pharmacy visit.", "Ask someone about pharmacy help.")
+        case "pharmacy-note": words = ("Write one medication question for your pharmacist.", "Think of one question for your pharmacist.")
+        case "medicine-place": words = ("Check the storage instructions on your medication.", "Read the storage line on the packaging.")
+        case "medicine-routine": words = ("Check your reminder against your prescribed schedule.", "Look at your next medication reminder.")
+        default: words = (quest.regular.title, quest.smaller.title)
+        }
+        return smaller ? words.1 : words.0
+    }
+
+    static func cardColor(_ index: Int) -> Color {
+        [Color(red: 0.20, green: 0.15, blue: 0.28), Color(red: 0.24, green: 0.17, blue: 0.32), Color(red: 0.28, green: 0.19, blue: 0.36)][abs(index % 3)]
+    }
+
+    static func visual(_ quest: Sidequest) -> String {
+        switch quest.id {
+        case "colour-walk", "new-view", "park-explorer", "favourite-route", "walk-talk": "figure.walk"
+        case "one-song": "figure.dance"
+        case "stretch-break": "figure.cooldown"
+        case "tomorrow-you": "tshirt"
+        case "soft-landing", "quiet-song": "moon.zzz.fill"
+        case "morning-light", "morning-plan": "sun.max.fill"
+        case "cosy-corner": "bed.double.fill"
+        case "food-favour", "shared-meal", "simple-meal", "food-check": "fork.knife"
+        case "easy-snack", "easy-breakfast": "carrot.fill"
+        case "tea-invite": "cup.and.saucer.fill"
+        case "send-photo": "photo.fill"
+        case "send-song": "music.note"
+        case "thank-person": "heart.fill"
+        case "voice-hello": "person.2.fill"
+        case "pharmacy-company", "pharmacy-note": "cross.case.fill"
+        default: "pills.fill"
+        }
+    }
+
+    static func tone(_ optionIndex: Int) -> Double { [1.0, 0.72, 0.45][abs(optionIndex % 3)] }
+
+    static func kind(_ quest: Sidequest) -> (title: String, symbol: String) {
+        switch quest.id {
+        case "tomorrow-you", "morning-plan": ("Morning prep", "sunrise")
+        case "soft-landing", "quiet-song", "cosy-corner": ("Wind-down", "moon.stars")
+        case "morning-light": ("Daylight", "sun.max")
+        case "one-song", "stretch-break": ("Gentle movement", "figure.cooldown")
+        case "colour-walk", "new-view", "park-explorer", "favourite-route": ("Explore outside", "leaf")
+        case "easy-snack", "food-check": ("Easy bite", "carrot")
+        case "simple-meal", "easy-breakfast": ("Meal prep", "fork.knife")
+        case "food-favour", "shared-meal": ("Eat together", "person.2")
+        case "tea-invite", "walk-talk": ("Time together", "cup.and.saucer")
+        case "send-song": ("Share a song", "music.note")
+        case "send-photo": ("Share a moment", "photo")
+        case "thank-person": ("A little kindness", "heart")
+        case "voice-hello": ("Say hello", "bubble.left")
+        case "medicine-stock": ("Supply check", "pills")
+        case "pharmacy-company", "pharmacy-note": ("Pharmacy help", "cross.case")
+        case "medicine-place": ("Medication care", "cabinet")
+        default: ("Your reminder", "bell")
+        }
+    }
+
+    static func color(_ category: SidequestCategory) -> Color {
+        switch category {
+        case .sleep: EverydayStyle.yellow
+        case .movement: EverydayStyle.mint
+        case .nutrition: EverydayStyle.peach
+        case .social: EverydayStyle.lavender
+        case .medicine: EverydayStyle.blue
+        }
+    }
+}

@@ -143,3 +143,29 @@ Support choices are grocery shopping, pharmacy visits, home cleaning and social 
 Routine replaces the Today tab label. The profile page shows name, daily rhythm and people in one scrollable page, titled with the person's name. Contacts use ID-resolved role bindings so deleting a row while its menu closes cannot access a stale array index.
 
 The Demobar now presents the Health-based position plus small, explicitly labelled routine feedback. Each manually logged category contributes a 1.5 percentage-point greenward shift, up to 9; undo and day selection recompute it from saved marks. This does not alter the Health engine or suppress support suggestions.
+
+### Challenge demo and widget (2026-11-15)
+
+Routine now offers three daily tasks from a 30-task library across Eat, Move, Sleep, Social and Medicine. Task type, icon and shade distinguish choices within one category. Tap a task to choose it and receive encouragement. Invite someone (where relevant) and Remind me are optional; there is no manual completion step. The reminder requests permission only when explicitly saved, uses a native time wheel and opens the current live task. Messages are reviewed and sent by the user.
+
+Add Mind's **Your small step** widget to the Home Screen after opening the updated app. It shows the live selected task without a completion button. Legacy widget completion receipts are discarded. Before a task is selected, the widget opens the daily choices. Demo overrides, Health measurements and contacts are not shared with the widget. Widget refresh scheduling is controlled by iOS.
+
+The app and widget share their signing identity via `Config/Signing.xcconfig`. For local development, create ignored `Config/LocalSigning.xcconfig` with `BESIDE_HOST_BUNDLE_IDENTIFIER = your.unique.bundle` and `BESIDE_DEVELOPMENT_TEAM = YOURTEAMID`. The private App Group is `group.<host bundle identifier>` and must be provisioned for both targets. Never commit the local override file.
+
+### Native challenge and Demo tabs (2026-11-15)
+
+Routine shows only today's live challenges. Choose directly on a card; its single heading contains the task. Selection time is saved without marking completion. The Trends tab holds the single date picker, demobar, category context, daily readings and actual challenge selection. Browsing a past day or editing demo readings never changes today's live challenge. Check-in and general Reach out remain available in You.
+
+Demo's Phone SMS test uses the saved Konsta contact, with no hardcoded number. Review the harmless draft and tap Send in native Messages. Sent confirmation comes from MessageUI, with a five-minute cooldown. This is a phone-originated test, not the optional simulated automatic-support service.
+
+### Mind appearance (2026-11-15)
+
+The app and widget now display the name Mind. The existing bundle identifiers and stored data remain compatible. All active screens use a dark system palette with amethyst accents. The home screen has three purple challenge tiles, each with one symbol and the short task as its only heading. Tap a tile to choose it; no Start, Make smaller or duration controls are shown inside the choices. Existing low-capacity rules can still offer the smaller version automatically.
+
+### Selection and Health recovery (2026-11-15)
+
+Choosing is the only required challenge interaction. Trends distinguishes a saved choice, assumed completion and supporting passive activity. Daily step/daylight/nutrition totals can be compared with the snapshot at selection; backfilled daily logs do not prove a particular task was performed. Sleep preparation, social and medication tasks remain unverified when no suitable evidence is available. No missing-data penalty or clinical score is introduced.
+
+Health reads now report query failures rather than silently presenting them as empty entries. Overlapping foreground refreshes are queued, and a wholly failed read preserves the last in-memory snapshot. The repair release requests the existing read permissions once; Trends also exposes manual access review and refresh. Previously denied types require enabling them in Health. Each date still shows only its own readings. Category scores are shown only for Sleep and Move when a baseline exists; other categories show context or missing-source status.
+
+Trends initially opens the most recent complete day with shared readings. Today remains available in its single native calendar and is labelled as a partial day. Both the main tab and reading editor show the selected date and how many measurement types have entries, so unrecorded nutrition or assessment types are not confused with a failed connection.

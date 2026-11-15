@@ -14,3 +14,6 @@ DerivedData/
 *.xcresult
 /work/
 /outputs/
+
+# Developer-specific app and widget signing overrides
+Config/LocalSigning.xcconfig
