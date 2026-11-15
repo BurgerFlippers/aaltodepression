@@ -89,8 +89,8 @@ These work and are covered by `Tools/engine-check.sh`, but no current screen cal
 - **Messages**: in the prototype nothing is sent by the backend. `OutgoingMessage.status` goes pending → sent →
   replied (demo: `receiveReply`), or cancelled. `planner.notifySimulatedSends` shows a local notice.
 - **SMS demo**: `prepareDemoSMS()` queues one pending request from the existing call-signal rule and never confirms it.
-  `DemoShortcutSender` (`Store/`) opens the person's "Mind Demo SMS" shortcut with an opaque run token
-  (`DemoShortcutLink`) and keeps a five-minute cooldown.
+  The running app's SMS demo (`BesideSMSDemo` in Features) does not use it: `DemoShortcutSender` (`Store/`) opens the
+  person's "Mind Demo SMS" shortcut (`DemoShortcutLink`) with "number\nmessage" as text input and keeps a one-minute cooldown.
 - **Notifications**: `NotificationPlan.daily(for: setup)` lists the repeating notifications. `updateSetup(_)`
   schedules them outside the demo while `Planner.schedulesDailyPlan` is true; the running app sets it to false.
   `SidequestReminders` handles the one-off task reminder.

@@ -339,9 +339,11 @@ final class BesidePresentation {
     private var displayedTable: FeatureTable {
         guard isDemoMode else { return table }
         if let quickScenario {
-            // The steady part of the simulated history (its built-in drift starts 15 days before its end),
-            // with the scenario's change over the last days.
-            var result = SimulatedSource.table(endingOn: day + 15).truncated(through: day)
+            // Steady scenarios use the steady part of the simulated history (its built-in drift starts 15 days
+            // before its end); A harder stretch keeps that drift. The scenario's change is added on top.
+            var result = quickScenario.usesDriftHistory
+                ? SimulatedSource.table(endingOn: day)
+                : SimulatedSource.table(endingOn: day + 15).truncated(through: day)
             let change = DemoScenarioRules.table(ending: day, load: quickScenario.load, source: result)
             for (key, series) in change.numbers { for (d, value) in series { result.set(key, d, value) } }
             return result
@@ -411,7 +413,7 @@ final class BesidePresentation {
     var balanceTitle: String {
         guard healthSignal?.result.steadiness != nil else { return "Learning your usual" }
         switch healthSignal?.step {
-        case .reachOut: return "Time to reach out"
+        case .reachOut: return quickScenario != nil ? "A contact person would be notified" : "Time to reach out"
         case .nudge: return "A little support could help"
         default: return "Your daily balance"
         }
@@ -560,6 +562,8 @@ final class BesidePresentation {
 }
 
 /// Scenarios for the Trends quick demo. Load feeds the existing simulated-change rule.
+/// Measured Daily balance on the selected day: Steady about 89 (green), A few harder days about 66 (yellow),
+/// A harder stretch about 44 (orange, lower half) with the reach-out step.
 enum TrendScenario: String, CaseIterable, Identifiable {
     case steady, someHarderDays, harderStretch
     var id: String { rawValue }
@@ -567,6 +571,8 @@ enum TrendScenario: String, CaseIterable, Identifiable {
         switch self { case .steady: "Steady"; case .someHarderDays: "A few harder days"; case .harderStretch: "A harder stretch" }
     }
     var load: Double {
-        switch self { case .steady: 0; case .someHarderDays: 0.5; case .harderStretch: 1 }
+        switch self { case .steady: 0; case .someHarderDays: 0.65; case .harderStretch: 1 }
     }
+    /// Keep the simulated history's own 15-day drift under the change, for a sustained harder stretch.
+    var usesDriftHistory: Bool { self == .harderStretch }
 }

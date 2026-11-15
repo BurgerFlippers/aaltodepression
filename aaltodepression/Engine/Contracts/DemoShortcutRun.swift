@@ -9,10 +9,11 @@ nonisolated struct DemoShortcutRun: Codable, Equatable, Sendable {
     var status: Status
 }
 
-/// Only an opaque run token crosses apps; no Health values, contact number or message body.
+/// Runs the person's own "Mind Demo SMS" shortcut. Its text input is the recipient's number on the first line
+/// and the demo message on the second. No Health values are ever included.
 nonisolated enum DemoShortcutLink {
     static let name = "Mind Demo SMS"
-    static func url(for run: DemoShortcutRun) -> URL? {
+    static func url(for run: DemoShortcutRun, text: String? = nil) -> URL? {
         func callback(_ outcome: String) -> String { "beside://demo-sms-\(outcome)?run=\(run.id.uuidString)" }
         var url = URLComponents()
         url.scheme = "shortcuts"
@@ -22,6 +23,7 @@ nonisolated enum DemoShortcutLink {
                           URLQueryItem(name: "x-success", value: callback("complete")),
                           URLQueryItem(name: "x-cancel", value: callback("cancel")),
                           URLQueryItem(name: "x-error", value: callback("error"))]
+        if let text { url.queryItems! += [URLQueryItem(name: "input", value: "text"), URLQueryItem(name: "text", value: text)] }
         return url.url
     }
     static func result(_ url: URL, matching run: DemoShortcutRun) -> DemoShortcutRun.Status? {

@@ -10,11 +10,12 @@ import Observation
         self.defaults = defaults
         if let data = defaults.data(forKey: key) { run = try? JSONDecoder().decode(DemoShortcutRun.self, from: data) }
     }
-    var coolingDown: Bool { run.map { Date().timeIntervalSince($0.startedAt) < 300 } ?? false }
-    func begin(requestID: String, day: Day) -> URL? {
+    /// A few seconds between attempts: blocks an accidental double tap, but a demo can follow a test right away.
+    var coolingDown: Bool { run.map { Date().timeIntervalSince($0.startedAt) < 5 } ?? false }
+    func begin(requestID: String, day: Day, text: String? = nil) -> URL? {
         guard !coolingDown else { return nil }
         let pending = DemoShortcutRun(id: UUID(), requestID: requestID, day: day.jdn, startedAt: Date(), status: .requested)
-        guard let url = DemoShortcutLink.url(for: pending) else { return nil }
+        guard let url = DemoShortcutLink.url(for: pending, text: text) else { return nil }
         run = pending
         save()
         return url

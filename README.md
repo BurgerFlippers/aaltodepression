@@ -1,12 +1,21 @@
 # MindMaintainer
 
-An iPhone app for people in their first year after TMS treatment for depression. It compares Apple Health and phone signals with the person's own usual, offers one small task each day, and makes it easier to reach the people they chose in advance. Built at Junction 2026 for the Aalto University challenge "Beyond the Clinic".
+**A quiet sidekick for the year after TMS treatment.** MindMaintainer notices when your days start drifting from your own normal, offers one small, doable thing to do today, and makes it easy to reach the people you picked on a good day. No streaks, no scores to beat, no guilt.
 
-A prototype, not a medical device. It does not diagnose anything.
+Built in a weekend at **Junction 2026** for the Aalto University challenge *"Beyond the Clinic"*. Fuelled by coffee, Swift 6 and a healthy respect for Apple's signing rules.
+
+> A prototype, not a medical device. It does not diagnose anything, and nothing is sent to anyone without the person's own tap.
+
+### In 30 seconds
+
+- **Learns your usual.** Sleep, daily rhythm, movement, daylight, getting out and body signals are compared with *your own* baseline, not a population average. Everything stays on the phone.
+- **One small step a day.** Three easy choices, pick one, mark it done. Feeling good? Do another. Feeling rough? The tasks get smaller.
+- **People, ready in advance.** Choose who could help with groceries, the pharmacy, cleaning or company while you feel well, so asking is one tap away when it's harder.
+- **Demo-friendly.** Trends has built-in demo scenarios from "Steady" to "A harder stretch", and an SMS demo shows how a contact person would be notified.
 
 ## Why
 
-TMS often works, but relapse is common in the first year, and an early booster course helps more when worsening is caught early. Today that depends on the person noticing the change and asking for help, which is hardest to do when things start to slip. MindMaintainer watches for drift from the person's own baseline and responds with small, concrete steps and the people they picked, not with a verdict.
+TMS often works, but relapse is common in the first year, and an early booster course helps more when worsening is caught early. Today that depends on the person noticing the change and asking for help, which is hardest to do exactly when things start to slip. MindMaintainer watches for drift from the person's own baseline and answers with small, concrete steps and the people they picked, not with a verdict.
 
 ## The app
 
@@ -16,7 +25,7 @@ Display name MindMaintainer. iOS 17 or later, SwiftUI, Swift 6, English UI. The 
 
 **Tabs:**
 
-- **One thing** ("Today's one thing"): three task choices built from the last complete day's Health scores. Choose one, then Mark as done, Invite someone or Remind me. After Mark as done the app offers the other two as optional extras.
+- **One thing** ("Today's one thing"): three task choices built from the last complete day's Health scores. Choose one, then Mark as done, Invite someone or Remind me. After Mark as done the app offers the other two as optional extras. Revert clears the day's choice, also after tasks are done.
 - **Trends:** Daily balance (day score from "Your usual" to "More support"), a 4-week chart, and eight signal rows: Sleep, Daily rhythm, Getting out, Movement, Daylight, Body, How you feel, Food. How you feel and Food are shown but never scored. Getting out needs Location.
 - **For you:** Reach out (pick a person and a topic, optionally get a short draft that greets them by first name, then send it yourself in Messages) and Get support (call a saved person; MIELI Crisis Helpline and 112 are listed for information and cannot be tapped in this demo).
 - **You:** every onboarding setting, in the same order.
@@ -43,7 +52,7 @@ Tasks come from a 30-task library (Eat, Move, Sleep, Social, Medicine), aimed at
 ## Demo
 
 - **Trends → Switch to demo data:** three scenarios (Steady, A few harder days, A harder stretch) on a simulated history. Real data is untouched, and leaving the tab clears it.
-- **Send SMS demo:** appears with A harder stretch. It runs the person's own Apple Shortcut named **Mind Demo SMS**, which sends one fixed test text to a contact named Konsta. The sheet explains the one-time setup. The app allows one attempt per five minutes and passes no Health data, contacts or message text to the shortcut. A finished shortcut is not proof of delivery.
+- **Send SMS demo:** appears with A harder stretch. The contact is chosen once in the triple-tap demo menu, which also shows the six-step shortcut setup. "Send SMS demo" (with A harder stretch) then runs the person's own Apple Shortcut "Mind Demo SMS" straight away. The app passes the contact's phone number and a generic message ("Hi <contact>, it would be good to give <user> a call today. (MindMaintainer demo)") as the shortcut's text input; no Health data. One attempt per minute; Shortcuts may show for a moment, and a finished shortcut is not proof of delivery.
 - **One thing → Show more tasks (demo):** sliders for the six areas show which tasks those scores would pick. Nothing is saved.
 - **Advanced demo menu:** triple tap the Trends title. It has the SMS test, 60 simulated days instead of Health, per-area score sliders, a difficulty slider, and editing of Health readings. Everything stays in an in-memory copy.
 

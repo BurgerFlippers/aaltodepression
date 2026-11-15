@@ -86,7 +86,7 @@ All of this is in `Engine/`.
 - The running app always saves the contact setting as "ask each time". It never sends a message by itself.
 - Reach out and task invitations open Messages, and the person taps Send.
 - The Automatic support switch saves the person's choice and marks the chosen helpers as agreed. In this prototype no automatic request is delivered.
-- **SMS demo:** in a demo scenario that reaches a support step, the app can run the person's own Apple Shortcut "Mind Demo SMS". The shortcut sends one fixed test text to a contact named Konsta. The app passes only an opaque run token, at most one attempt per five minutes, and a finished shortcut is not proof of delivery.
+- **SMS demo:** The contact is chosen once in the triple-tap demo menu, which also shows the six-step shortcut setup. "Send SMS demo" (with A harder stretch) then runs the person's own Apple Shortcut "Mind Demo SMS" straight away. The app passes the contact's phone number and a generic message ("Hi <contact>, it would be good to give <user> a call today. (MindMaintainer demo)") as the shortcut's text input; no Health data. One attempt per minute; Shortcuts may show for a moment, and a finished shortcut is not proof of delivery.
 - Backend rules for automatic suggestions: only agreed contacts, at most two a week, only between 08 and 20, no health words, never again after Cancel. They are in `Engine/Planner/` and are still enforced.
 
 ## 8. Code layout

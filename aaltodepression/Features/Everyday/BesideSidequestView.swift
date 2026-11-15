@@ -26,12 +26,17 @@ struct BesideSidequestView: View {
                     Spacer()
                     Button { showReason = true } label: { Image(systemName: "info.circle").frame(width: 44, height: 44) }
                         .accessibilityLabel("Why these challenges?")
-                    if offer.selected != nil, !finished {
+                    if offer.selected != nil {
+                        // Works in every state, also after tasks are marked done.
                         Button {
-                            presentation.backend.planner.changeSidequest(on: day)
-                        } label: { Image(systemName: "arrow.uturn.backward").frame(width: 44, height: 44) }
-                            .accessibilityLabel("Choose another challenge")
-                            .accessibilityIdentifier("challenge-back")
+                            extraPick = nil
+                            presentation.backend.planner.revertSidequest(on: day)
+                        } label: {
+                            Label("Revert", systemImage: "arrow.uturn.backward").font(.subheadline.weight(.semibold))
+                                .frame(minHeight: 44)
+                        }
+                        .accessibilityHint("Clears today's choice and anything marked done")
+                        .accessibilityIdentifier("challenge-revert")
                     }
                 }
                 if let quest = offer.selected {

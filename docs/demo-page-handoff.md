@@ -89,19 +89,21 @@ Card text uses the **short brief**, not `regular.title`. Copy the `BesideQuestSt
    - An (i) button opens an alert titled "Why these challenges?" with `offer.reason`.
    - Three tall tiles (min 150 px, task card colour, radius 32): icon on top and the brief centred under it. Tapping a tile chooses it.
 2. **Chosen, not done**
-   - Header: "Your choice for today", plus a back arrow button (choose another).
+   - Header: "Your choice for today", plus a **"Revert"** text button with a back-arrow icon (see below).
    - All three tiles stay. The chosen one has a 2 px accent border and a check-circle icon at the top right. The others fade to 35 % opacity and can't be tapped.
    - Under the tiles: "A good choice. One small step is enough." in accent.
    - Primary button "Mark as done".
    - Text buttons: "Invite someone" (only when `canInvite`) and "Remind me". On the web, Remind me can show a demo toast.
 3. **Done**
-   - Header: "Done for today".
+   - Header: "Done for today". The "Revert" button is still there.
    - The chosen tile shows a filled check. The other tiles return to full opacity and can be tapped, which picks them as an extra and gives them the accent border.
    - Praise in accent headline:
      - 0 extras: "Well done! You did today's one thing."
      - 1 extra: "One more done. That's a lot to be proud of."
      - 2 extras: "All done. What a day. Remember to rest too."
    - If an extra is picked: "Mark as done" marks it done. Otherwise, while some are left: "Feeling like a bit more? Pick another one above. Only if it feels good."
+
+**Revert** (`Planner.revertSidequest`, `SidequestDay.revert()`): shown in the header whenever a task is chosen, in both the chosen and the done state. It returns the day to the "Not chosen" state: no choice, nothing marked done, no extras and no reminder. The same three options stay. On the web it is the easiest way to replay the flow.
 
 ### "Show more tasks (demo)"
 
@@ -138,7 +140,7 @@ Sources: `Features/Everyday/BesideDemoView.swift` (page, `TrendArea`, `BesideTre
      - "Learning your usual" (no value yet)
      - "Your daily balance" (steady)
      - "A little support could help" (nudge)
-     - "Time to reach out" (reach out)
+     - "Time to reach out" (reach out). With demo data, as on the web, this reads **"A contact person would be notified"**.
    - The 4-step balance scale with a white dot (black 3 px outline). The dot sits at `1 − value/100` across the width.
    - Under it, small grey "Your usual" on the left and "More support" on the right.
    - **Last 4 weeks:** a bar per day, coloured by the balance scale at 55 % opacity, with a primary-colour 7-day average line. The Y axis is 0/50/100, X labels fall every 7 days, and it is 120 px tall. Header: "Last 4 weeks", with "7-day average NN" at the right.
@@ -174,7 +176,15 @@ interface TrendsFixture {
 }
 ```
 
-How the app builds the demo data (`BesidePresentation.displayedTable`): it takes the steady part of `SimulatedSource` (`SimulatedSource.table(endingOn: day + 15).truncated(through: day)`). On top of that it applies `DemoScenarioRules.table(ending:load:source:)` with load 0, 0.5 or 1. It then runs `StepEngine.run(...)` and reads `healthHistory`.
+How the app builds the demo data (`BesidePresentation.displayedTable`, `TrendScenario`). It then runs `StepEngine.run(...)` and reads `healthHistory`.
+
+| Scenario | Base history | `DemoScenarioRules` load | Daily balance on the day | Zone | Step and title |
+|---|---|---|---|---|---|
+| Steady | steady part: `SimulatedSource.table(endingOn: day + 15).truncated(through: day)` | 0 | about 89 | green | steady, "Your daily balance" |
+| A few harder days | steady part (as above) | 0.65 | about 66 | yellow | steady, "Your daily balance" |
+| A harder stretch | with its own 15-day drift: `SimulatedSource.table(endingOn: day)` | 1.0 | about 44 | orange, lower half | reach out, "A contact person would be notified" |
+
+The values were measured with the engine and can move a point or two from day to day, because the simulated history repeats over the weekdays. Export the fixtures from these exact settings so the web page shows the same zones. On the balance bar, the dot for 66 sits in the yellow segment and the dot for 44 in the orange segment.
 
 Suggested exporter: a small command-line target next to `Tools/EngineCheck` (it already compiles `Engine/` and `Sources/DemoSource.swift` without SwiftUI). It calls those functions and prints the JSON. Three fixtures are enough; the web page has no "my data" view.
 
@@ -217,8 +227,8 @@ Sources: `Features/Everyday/BesideForYouView.swift`, `Features/Everyday/Everyday
 ## 4. Checklist for the web repo
 
 - [ ] Dark theme with the tokens above, the system font and 32 px squircle cards.
-- [ ] One thing: three states, Mark as done, praise copy, extras, and the "Show more tasks (demo)" panel with the six-category rule.
-- [ ] Trends: "Change demo scenario" picker (three scenarios, Steady first), the balance card, the 4-week chart and eight signal rows. No demo data toggle, no "my data" view and no SMS demo.
+- [ ] One thing: three states, Mark as done, praise copy, extras, Revert in the chosen and done states, and the "Show more tasks (demo)" panel with the six-category rule.
+- [ ] Trends: "Change demo scenario" picker (three scenarios, Steady first; about 89 / 66 / 44, with "A contact person would be notified" on A harder stretch), the balance card, the 4-week chart and eight signal rows. No demo data toggle, no "my data" view and no SMS demo.
 - [ ] For you: Reach out (people, draft, copy) and Get support (people, non-tappable emergency numbers).
 - [ ] Fixtures exported from the Swift engine rather than re-implemented scoring.
 - [ ] Nothing calls, messages or reads real data; every action that would leave the page is a demo toast.

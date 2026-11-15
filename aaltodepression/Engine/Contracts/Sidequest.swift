@@ -92,6 +92,17 @@ nonisolated struct SidequestDay: Codable, Equatable, Sendable {
         return true
     }
 
+    /// Back to the untouched offer: no choice, nothing done, no reminder. The three options stay.
+    mutating func revert() {
+        selectedID = nil
+        useSmaller = false
+        startedAt = nil
+        completedAt = nil
+        reminderAt = nil
+        selectionReadings = nil
+        alsoDoneIDs = nil
+    }
+
     func isDone(_ id: String) -> Bool { (id == selectedID && completedAt != nil) || (alsoDoneIDs ?? []).contains(id) }
 
     /// Doing more is optional: only after the chosen option is done, once per option.

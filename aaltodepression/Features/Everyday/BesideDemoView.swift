@@ -6,7 +6,8 @@ import Charts
 struct BesideDemoView: View {
     @Environment(BesidePresentation.self) private var presentation
     @State private var showAdvanced = false
-    @State private var showSMS = false
+    @State private var smsNotice: String?
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
@@ -59,7 +60,6 @@ struct BesideDemoView: View {
                     }
                 }
                 .sheet(isPresented: $showAdvanced) { BesideDemoScenarioView() }
-                .sheet(isPresented: $showSMS) { BesideSMSDemoSheet() }
         }
     }
 
@@ -79,9 +79,16 @@ struct BesideDemoView: View {
                 }.pickerStyle(.segmented).accessibilityIdentifier("trends-scenario")
             }
             if presentation.quickScenario == .harderStretch {
-                Button { showSMS = true } label: {
+                // Sends straight away through the shortcut set up in the demo menu; no setup screen here.
+                Button {
+                    smsNotice = BesideSMSDemo.blocker(presentation)
+                    if smsNotice == nil { BesideSMSDemo.send(presentation, openURL: openURL) }
+                } label: {
                     Label("Send SMS demo", systemImage: "message").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44)
                 }.buttonStyle(.bordered).accessibilityIdentifier("trends-sms-demo")
+                if let text = smsNotice ?? BesideSMSDemo.recentStatus(presentation) {
+                    Text(text).font(.footnote).foregroundStyle(.secondary).accessibilityIdentifier("trends-sms-status")
+                }
             }
         }.tint(EverydayStyle.accent)
     }
