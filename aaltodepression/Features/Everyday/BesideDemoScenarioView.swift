@@ -57,11 +57,9 @@ struct BesideDemoScenarioView: View {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                 }
                 .onAppear {
-                    // The advanced controls take over from the simple Trends demo data while they are used.
-                    presentation.setQuickScenario(nil)
+                    // Opening the menu changes nothing on Trends. Data changes only when a control here is used;
+                    // then it takes over from the simple Trends demo data (see BesidePresentation).
                     load = presentation.demoLoad ?? 0
-                    // With simulated data on, keep its history; the difficulty slider is still there to apply on purpose.
-                    if presentation.demoLoad == nil && !presentation.simulatedData { presentation.applyDemoLoad(0) }
                 }
                 .sheet(isPresented: $showReadings) { BesideDemoControlsView(embeddedInDemo: true) }
         }
