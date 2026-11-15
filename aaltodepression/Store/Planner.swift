@@ -92,12 +92,20 @@ final class Planner {
     /// One scheduling at a time, in order, so a quick second change never leaves stale reminders.
     @ObservationIgnored private var scheduling: Task<Void, Never>?
 
+    /// Whether the repeating daily plan (morning check-in, medicine, shopping day, wind-down) is scheduled.
+    /// The running MindMaintainer UI turns this off: it shows none of those questions. Task reminders
+    /// ("Remind me") are separate (SidequestReminders) and unaffected.
+    var schedulesDailyPlan = true {
+        didSet { if !isDemo, oldValue != schedulesDailyPlan { scheduleReminders(for: state.setup) } }
+    }
+
     private func scheduleReminders(for s: PlannerSetup) {
         let previous = scheduling
+        let enabled = schedulesDailyPlan
         scheduling = Task {
             await previous?.value
-            // An erased planner (no name) keeps no daily reminders at all.
-            if s.personName.isEmpty { await PlannerNotifications.removeDailyPlan() }
+            // An erased planner (no name) or a UI without these questions keeps no daily reminders at all.
+            if s.personName.isEmpty || !enabled { await PlannerNotifications.removeDailyPlan() }
             else { await PlannerNotifications.schedule(for: s) }
         }
     }

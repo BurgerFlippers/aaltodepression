@@ -92,7 +92,8 @@ These work and are covered by `Tools/engine-check.sh`, but no current screen cal
   `DemoShortcutSender` (`Store/`) opens the person's "Mind Demo SMS" shortcut with an opaque run token
   (`DemoShortcutLink`) and keeps a five-minute cooldown.
 - **Notifications**: `NotificationPlan.daily(for: setup)` lists the repeating notifications. `updateSetup(_)`
-  schedules them outside the demo. `SidequestReminders` handles the one-off task reminder.
+  schedules them outside the demo while `Planner.schedulesDailyPlan` is true; the running app sets it to false.
+  `SidequestReminders` handles the one-off task reminder.
 - **Health reads**: `HealthKitSource.read(..., keys:)` and `readReport(..., keys:)` take an optional allow-list;
   omitting it keeps the older full read. See [HEALTHKIT_DATA.md](HEALTHKIT_DATA.md).
 

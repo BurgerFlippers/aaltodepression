@@ -39,7 +39,8 @@ Layout target: iPhone 14 Pro, 393 × 852 pt. Pages are a phone-width column with
 | Apple Health readings | Static JSON fixtures (see "Data" in Trends) |
 | Planner state and persistence (`Store/Planner.swift`) | In-memory state; reset on reload |
 | Contacts (`Contact`) | A fixed list of demo people |
-| Opening Messages, `tel:` links, Apple Shortcuts SMS | Show the copied message text or a "Demo: would open Messages" toast. Never place real calls or send messages. |
+| Opening Messages, `tel:` links | Show the copied message text or a "Demo: would open Messages" toast. Never place real calls or send messages. |
+| Apple Shortcuts SMS demo | Leave out (see Trends) |
 | Notifications, widget, Location | Leave out |
 
 ### Porting the rules
@@ -122,15 +123,15 @@ Card text uses the **short brief**, not `regular.title`. Copy the `BesideQuestSt
 
 ## 2. Trends
 
-Sources: `Features/Everyday/BesideDemoView.swift` (page, `TrendArea`, `BesideTrendBalanceView`, `BesideBalanceTrend`), `Features/Everyday/BesidePresentation.swift` (`TrendScenario`, `balanceTitle`), `Features/Everyday/BesideSMSDemoView.swift`.
+Sources: `Features/Everyday/BesideDemoView.swift` (page, `TrendArea`, `BesideTrendBalanceView`, `BesideBalanceTrend`), `Features/Everyday/BesidePresentation.swift` (`TrendScenario`, `balanceTitle`).
 
 ### Layout, top to bottom
 
 1. **Header row:** the title "Trends" on the left, and on the right a previous-day arrow, a date label ("Today" or "15 Nov") and a next-day arrow. You can browse back up to 120 days but not past today.
-2. **Demo controls:**
-   - A full-width bordered button, "Switch to demo data". While demo data is on it reads "Show my data".
-   - While demo data is on, a segmented picker with three options: **Steady**, **A few harder days** and **A harder stretch**.
-   - With "A harder stretch" selected, a bordered button **"Send SMS demo"** appears.
+2. **"Change demo scenario":** a small heading with a segmented picker under it, always visible. The options are **Steady**, **A few harder days** and **A harder stretch**, and Steady is selected when the page opens.
+   - This differs from the app on purpose. The app has a "Switch to demo data" / "Show my data" button because it can show the person's own Health data. The web page only ever shows demo data, so there is nothing to switch to: leave the button out, along with any "my data" view.
+   - Changing the scenario swaps the fixture and updates everything below it straight away.
+   - The app's "Send SMS demo" button is **not** on the web page (see below).
 3. **Daily balance card:**
    - Title "Daily balance", with the value at the right ("72" in large bold digits and "/100" small).
    - `balanceTitle`:
@@ -142,7 +143,7 @@ Sources: `Features/Everyday/BesideDemoView.swift` (page, `TrendArea`, `BesideTre
    - Under it, small grey "Your usual" on the left and "More support" on the right.
    - **Last 4 weeks:** a bar per day, coloured by the balance scale at 55 % opacity, with a primary-colour 7-day average line. The Y axis is 0/50/100, X labels fall every 7 days, and it is 120 px tall. Header: "Last 4 weeks", with "7-day average NN" at the right.
    - Caption: "Every day this week was near your usual." or "N of the last 7 days were further from your usual."
-   - With demo data on, an accent label: "Demo data · <scenario> · your data is unchanged".
+   - An accent label: "Demo data · <scenario>". The app adds "· your data is unchanged"; leave that out on the web, since there is no personal data.
 4. **"Your signals":** one list card with eight expandable rows, in this order:
    - Sleep, Daily rhythm, Getting out, Movement, Daylight, Body, How you feel, Food
    - Each row: icon, title, a summary ("Close to your usual" if the score is ≥ 70, otherwise "Different from your usual") and the score at the right.
@@ -150,7 +151,10 @@ Sources: `Features/Everyday/BesideDemoView.swift` (page, `TrendArea`, `BesideTre
    - Expanded: the metric rows, plus for Daily rhythm the "Bedtime regularity" and "Wake-up regularity" rows, plus the note text. Copy the `TrendArea` titles, icons, metrics and notes from `BesideDemoView.swift`.
 5. A small caption with how many readings were shared for the day (`selectedDayAvailability`).
 
-These parts of the app are **not** in the web version: the advanced demo menu (triple tap on the title) and Health readings.
+These parts of the app are **not** in the web version:
+- the "Switch to demo data" / "Show my data" button (replaced by "Change demo scenario")
+- "Send SMS demo" and its sheet. It needs the person's iPhone and their own Apple Shortcut, so it stays in the app only.
+- the advanced demo menu (triple tap on the title) and Health readings
 
 ### Data
 
@@ -172,18 +176,7 @@ interface TrendsFixture {
 
 How the app builds the demo data (`BesidePresentation.displayedTable`): it takes the steady part of `SimulatedSource` (`SimulatedSource.table(endingOn: day + 15).truncated(through: day)`). On top of that it applies `DemoScenarioRules.table(ending:load:source:)` with load 0, 0.5 or 1. It then runs `StepEngine.run(...)` and reads `healthHistory`.
 
-Suggested exporter: a small command-line target next to `Tools/EngineCheck` (it already compiles `Engine/` and `Sources/DemoSource.swift` without SwiftUI). It calls those functions and prints the JSON. Use one fixture for "my data" as well, e.g. the steady one with real-looking variation, since a web page cannot read Apple Health.
-
-### Send SMS demo
-
-- In the app this runs the user's Apple Shortcut, "Mind Demo SMS".
-- On the web, open a sheet titled "Send SMS demo" with:
-  - "To: Konsta"
-  - A toggle, "Send a demo text automatically"
-  - The status "Support signal detected"
-  - When the toggle is on, show the fixed message: "Mind DEMO TEST: automatic support signal reached. No action needed."
-  - A footer saying a real send needs the iPhone app
-- Never send anything from the web.
+Suggested exporter: a small command-line target next to `Tools/EngineCheck` (it already compiles `Engine/` and `Sources/DemoSource.swift` without SwiftUI). It calls those functions and prints the JSON. Three fixtures are enough; the web page has no "my data" view.
 
 ---
 
@@ -225,7 +218,7 @@ Sources: `Features/Everyday/BesideForYouView.swift`, `Features/Everyday/Everyday
 
 - [ ] Dark theme with the tokens above, the system font and 32 px squircle cards.
 - [ ] One thing: three states, Mark as done, praise copy, extras, and the "Show more tasks (demo)" panel with the six-category rule.
-- [ ] Trends: demo data toggle, three scenarios, the balance card, the 4-week chart, eight signal rows, and Send SMS demo with A harder stretch.
+- [ ] Trends: "Change demo scenario" picker (three scenarios, Steady first), the balance card, the 4-week chart and eight signal rows. No demo data toggle, no "my data" view and no SMS demo.
 - [ ] For you: Reach out (people, draft, copy) and Get support (people, non-tappable emergency numbers).
 - [ ] Fixtures exported from the Swift engine rather than re-implemented scoring.
 - [ ] Nothing calls, messages or reads real data; every action that would leave the page is a demo toast.

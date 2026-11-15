@@ -58,6 +58,9 @@ final class BesidePresentation {
         profileStore.state.profile.weight = ""
         profileStore.state.profile.height = ""
         if let data = defaults.data(forKey: "beside.home.boxes"), let stored = try? JSONDecoder().decode([BesideHomeBox].self, from: data) { boxes = stored }
+        // This UI has no morning check-in, medicine, shopping or wind-down questions, so their
+        // repeating notifications are not scheduled, and any already pending are removed.
+        backend.planner.schedulesDailyPlan = false
         locationAuthorized = location.isEnabled
         location.onChange = { [weak self] in
             guard let self else { return }

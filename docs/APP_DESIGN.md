@@ -64,7 +64,7 @@ The same settings as onboarding, in the same order: name, your people, support i
 - Widget "Your small step" (small and medium) shows the chosen task for today. Tapping opens the app. It cannot mark the task done.
 - The widget's App Group file holds only the task's day, id, wording, category, minutes, size and whether it is done. No Health values, contacts or demo data.
 - "Remind me" schedules one local notification today with private text ("A small step, when you're ready"). It is removed when the task is done or changed. Notification permission is asked only here.
-- Each setup change also makes the planner reschedule its repeating notifications from the default setup: "Good morning" (check-in, 07:30), "Shopping day" (Tuesday and Saturday, 17:00) and "Evening wind-down". They appear once notifications are allowed, although the check-in and shopping question are not in the running UI.
+- The planner's repeating daily notifications (morning check-in, medicine, shopping day, wind-down) are off in the running app: `BesidePresentation` sets `Planner.schedulesDailyPlan = false`, which also removes any already pending. The only notification is the task reminder from "Remind me".
 
 ## 6. How the day is decided
 
@@ -121,4 +121,3 @@ The earlier "Loimi" plan (woven rug reward, Food and Evening tabs, medication ta
 - `CalendarPhotosSource.swift` and the Calendar and Photos permission texts in `project.pbxproj` are still in the repo, although calendar and photos are outside the data scope.
 - Location storage does not yet meet the rule in [DATA_SCOPE.md](DATA_SCOPE.md) (see there).
 - Automatic support delivery needs a real sending service and an agreement from the recipient.
-- The planner's repeating notifications (check-in, shopping day, wind-down) do not match the running UI.
