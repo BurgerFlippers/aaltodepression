@@ -58,10 +58,14 @@ struct BesideDemoView: View {
                 }.padding(20)
             }.background(EverydayStyle.paper).mindHeader("Trends")
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        DatePicker("Day", selection: Binding(get: { presentation.day.start() }, set: { presentation.selectDay(Day($0)) }),
-                                   in: (Day(Date()) - 120).start()...Date(), displayedComponents: .date)
-                            .labelsHidden().accessibilityIdentifier("demo-day-picker")
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        Button("Previous day", systemImage: "chevron.left") { presentation.selectDay(presentation.day - 1) }
+                            .disabled(presentation.day <= Day(Date()) - 120)
+                        Text(presentation.day == Day(Date()) ? "Today" : presentation.day.start().formatted(.dateTime.day().month(.abbreviated)))
+                            .font(.subheadline.weight(.semibold).monospacedDigit()).fixedSize()
+                            .accessibilityIdentifier("demo-day-picker")
+                        Button("Next day", systemImage: "chevron.right") { presentation.selectDay(presentation.day + 1) }
+                            .disabled(presentation.day >= Day(Date()))
                     }
                     ToolbarItem(placement: .topBarTrailing) { Button("Demo", systemImage: "slider.horizontal.3") { showDemo = true }.accessibilityIdentifier("trends-demo") }
                 }
