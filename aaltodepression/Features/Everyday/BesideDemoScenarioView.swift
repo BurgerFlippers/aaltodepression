@@ -1,27 +1,16 @@
 import SwiftUI
 
-/// Uses the person's configured Apple Shortcut; no SMS vendor or carrier credentials in Mind.
+/// Advanced demo controls, opened by triple-tapping the Trends title. The message test lives in BesideSMSDemoSection.
 struct BesideDemoScenarioView: View {
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
-    @AppStorage("mind.demo.shortcutConfigured.v1") private var shortcutReady = false
     @State private var load = 0.0
-    @State private var armed = false
-    @State private var request: OutgoingMessage?
     @State private var showReadings = false
-    @State private var showSetup = false
-    private var sender: DemoShortcutSender { presentation.demoShortcutSender }
-    private var konsta: Contact? {
-        presentation.liveBackend.planner.setup.contacts.first {
-            $0.name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-                .split(whereSeparator: { $0.isWhitespace }).contains("konsta") && !ContactIntake.normalized($0.phone).isEmpty
-        }
-    }
 
     var body: some View {
         NavigationStack {
             Form {
+                BesideSMSDemoSection()
                 Section {
                     Toggle("Use simulated data", isOn: Binding(get: { presentation.simulatedData }, set: { presentation.simulatedData = $0 }))
                         .accessibilityIdentifier("demo-simulated-data")
@@ -58,39 +47,7 @@ struct BesideDemoScenarioView: View {
                     Button("Apply scenario") { apply() }.accessibilityIdentifier("demo-apply-scenario")
                 } header: { Text("Demo controls") } footer: { Text("Simulated readings run through the existing scoring rules. Real Health data and live records stay unchanged.") }
                 Section {
-                    LabeledContent("To", value: konsta?.name ?? "Add Konsta in Your people")
-                    Toggle("Send a demo text automatically", isOn: $armed)
-                        .disabled(konsta == nil || !shortcutReady || sender.coolingDown || request != nil)
-                        .accessibilityIdentifier("demo-arm-sms")
-                    Label(presentation.healthSignal?.step == .steady || presentation.demoLoad == nil ? "Waiting for a support signal" : "Support signal detected", systemImage: "waveform.path")
-                        .accessibilityIdentifier("demo-signal-state")
-                    Text(request == nil ? "No request started" : "Request handed to Shortcuts")
-                        .accessibilityIdentifier("demo-request-state")
-                    if let status = sender.statusText {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Latest shortcut result").font(.caption).foregroundStyle(.secondary)
-                            Text(status).font(.subheadline)
-                        }.accessibilityIdentifier("demo-sms-result")
-                    }
-                    if sender.coolingDown { Text("One attempt per five minutes. Reset does not remove this limit.").font(.caption).foregroundStyle(.secondary) }
-                    DisclosureGroup("One-time iPhone setup", isExpanded: $showSetup) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("1. In Shortcuts, create a shortcut named Mind Demo SMS.")
-                            Text("2. Add Apple's Send Message action. Choose Konsta and the same number saved in MindMaintainer.")
-                            Text("3. Use this fixed message:")
-                            Text("Mind DEMO TEST: automatic support signal reached. No action needed.").textSelection(.enabled)
-                            Text("4. Turn off Show When Run / Show Compose Sheet in that action. Allow the first iOS permission yourself.")
-                            Text("The shortcut must contain only that fixed test message and recipient. It receives no Health data or phone number from MindMaintainer.")
-                            Button("Open Shortcuts") { if let url = URL(string: "shortcuts://") { openURL(url) } }
-                            Toggle("Mind Demo SMS is configured for Konsta", isOn: $shortcutReady)
-                                .accessibilityIdentifier("demo-shortcut-ready")
-                        }.font(.subheadline).padding(.vertical, 10)
-                    }
-                } header: { Text("Message test · your iPhone") } footer: {
-                    Text("Once set up, a support signal runs the shortcut without a Messages Send button. Shortcuts may open and iOS may request a first-run permission. A completed shortcut does not verify message delivery.")
-                }
-                Section {
-                    Button("Fine-tune individual readings", systemImage: "slider.horizontal.3") { showReadings = true }
+                    Button("Health readings and fine-tuning", systemImage: "heart.text.square") { showReadings = true }
                     LabeledContent("Support stage", value: stage)
                     LabeledContent("Changed days this week", value: "\(presentation.healthSignal?.driftDaysInLastWeek ?? 0)")
                 }
@@ -100,15 +57,11 @@ struct BesideDemoScenarioView: View {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
                 }
                 .onAppear {
+                    // The advanced controls take over from the simple Trends demo data while they are used.
+                    presentation.setQuickScenario(nil)
                     load = presentation.demoLoad ?? 0
                     // With simulated data on, keep its history; the difficulty slider is still there to apply on purpose.
                     if presentation.demoLoad == nil && !presentation.simulatedData { presentation.applyDemoLoad(0) }
-                    showSetup = !shortcutReady
-                }
-                .onChange(of: shortcutReady) { _, ready in if !ready { armed = false } }
-                .onChange(of: armed) { _, enabled in
-                    presentation.setDemoRecipient(enabled ? konsta?.id : nil)
-                    if enabled { sendIfNeeded() }
                 }
                 .sheet(isPresented: $showReadings) { BesideDemoControlsView(embeddedInDemo: true) }
         }
@@ -116,20 +69,10 @@ struct BesideDemoScenarioView: View {
     private var stage: String {
         switch presentation.healthSignal?.step { case .nudge: "Small step / support check"; case .reachOut: "Reach out"; default: "Steady" }
     }
-    private func apply() {
-        presentation.applyDemoLoad(load)
-        sendIfNeeded()
-    }
-    private func sendIfNeeded() {
-        guard armed, shortcutReady, konsta != nil, !sender.coolingDown, request == nil,
-              let prepared = presentation.prepareDemoSMS(),
-              let url = sender.begin(requestID: prepared.id, day: presentation.day), let run = sender.run else { return }
-        request = prepared
-        armed = false
-        openURL(url) { opened in sender.didOpen(id: run.id, opened: opened) }
-    }
+    // The message test section sends on its own when a new load reaches the support signal.
+    private func apply() { presentation.applyDemoLoad(load) }
     private func reset() {
-        armed = false; request = nil; load = 0
+        load = 0
         presentation.resetDemoScenario()
     }
 }

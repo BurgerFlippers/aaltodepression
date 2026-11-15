@@ -17,6 +17,9 @@ final class BesidePresentation {
     private(set) var healthStatus: String?
     private(set) var healthReadAt: Date?
     private(set) var demoLoad: Double?
+    /// Trends "Switch to demo data": a scenario on a simulated history. Separate from the advanced demo
+    /// controls (demoLoad, edits, score overrides); shown only while Trends is open and cleared on leaving it.
+    private(set) var quickScenario: TrendScenario?
     private(set) var demoRecipientID: String?
     /// Demo only: hand-set area scores for the selected day, to see how the challenges respond.
     private(set) var scoreOverrides: [ScoreKind: Double] = [:]
@@ -42,6 +45,8 @@ final class BesidePresentation {
     private(set) var locationAuthorized = false
     /// Places needs location history: real visits when Location is on and allowed, or the simulated history.
     private var usesLocation: Bool { simulatedData || (locationEnabled && locationAuthorized) }
+    /// The Trends quick demo has simulated places too; it only affects the sandbox, never the live computation.
+    private var sandboxUsesLocation: Bool { usesLocation || quickScenario != nil }
 
     init(profileStore: EverydayStore, backend: Backend = Backend()) {
         self.profileStore = profileStore
@@ -280,7 +285,7 @@ final class BesidePresentation {
     }
 
     var selectedDayAvailability: String {
-        let metrics = BesideHealthMetric.allCases.filter { $0.group != "Places" || usesLocation }
+        let metrics = BesideHealthMetric.allCases.filter { $0.group != "Places" || sandboxUsesLocation }
         let count = metrics.filter { reading($0) != nil }.count
         if day == Day(Date()) { return "Today is still in progress · \(count) of \(metrics.count) readings recorded so far." }
         return "\(count) of \(metrics.count) readings shared for this day. Not every device or tracker records every type."
@@ -309,6 +314,7 @@ final class BesidePresentation {
 
     func returnToLive() {
         selectedDay = nil
+        quickScenario = nil
         scoreOverrides.removeAll()
         demoLoad = nil
         demoRecipientID = nil
@@ -329,6 +335,14 @@ final class BesidePresentation {
     }
     private var displayedTable: FeatureTable {
         guard isDemoMode else { return table }
+        if let quickScenario {
+            // The steady part of the simulated history (its built-in drift starts 15 days before its end),
+            // with the scenario's change over the last days.
+            var result = SimulatedSource.table(endingOn: day + 15).truncated(through: day)
+            let change = DemoScenarioRules.table(ending: day, load: quickScenario.load, source: result)
+            for (key, series) in change.numbers { for (d, value) in series { result.set(key, d, value) } }
+            return result
+        }
         var result = demoLoad.map { DemoScenarioRules.table(ending: day, load: $0, source: table) } ?? table
         for (jdn, edits) in demoEdits {
             for (key, value) in edits { result.set(key, Day(jdn: jdn), value) }
@@ -352,6 +366,12 @@ final class BesidePresentation {
             backend = demo
         }
         demoLoad = min(1, max(0, load))
+        refreshSandbox(replaceSidequests: true)
+    }
+
+    func setQuickScenario(_ scenario: TrendScenario?) {
+        guard isDemoMode else { return }
+        quickScenario = scenario
         refreshSandbox(replaceSidequests: true)
     }
 
@@ -416,11 +436,12 @@ final class BesidePresentation {
         return median(values.map { abs($0 - mid) }) * 1.4826 * 60
     }
 
-    var locationAvailable: Bool { usesLocation }
+    var locationAvailable: Bool { isDemoMode ? sandboxUsesLocation : usesLocation }
 
     private func refreshSandbox(replaceSidequests: Bool = false) {
         guard let selectedDay, let sandbox else { return }
-        if demoLoad != nil {
+        // Demo message recipient for either demo; the live planner is never touched.
+        if demoLoad != nil || quickScenario != nil {
             var setup = sandbox.planner.setup
             setup.helpConsent = .askEachTime
             setup.clinicPhone = ""
@@ -433,8 +454,9 @@ final class BesidePresentation {
             if setup != sandbox.planner.setup { sandbox.planner.updateSetup(setup) }
         }
         let inputs = planningTable(displayedTable.truncated(through: selectedDay))
-        healthHistory = StepEngine.run(table: inputs, through: selectedDay, homeTimeZone: TimeZone.current.identifier, locationEnabled: usesLocation)
-        if !scoreOverrides.isEmpty, let i = healthHistory.firstIndex(where: { $0.day == selectedDay }) {
+        healthHistory = StepEngine.run(table: inputs, through: selectedDay, homeTimeZone: TimeZone.current.identifier, locationEnabled: sandboxUsesLocation)
+        // The quick demo stays independent of the advanced controls' score overrides.
+        if quickScenario == nil, !scoreOverrides.isEmpty, let i = healthHistory.firstIndex(where: { $0.day == selectedDay }) {
             let old = healthHistory[i]
             var result = old.result
             for (kind, value) in scoreOverrides { result.scores[kind] = value }
@@ -443,7 +465,7 @@ final class BesidePresentation {
             healthHistory[i] = StepDay(result: result, baselineDay: old.baselineDay, isDrift: old.isDrift,
                                        driftDaysInLastWeek: old.driftDaysInLastWeek, step: old.step, since: old.since)
         }
-        sandbox.refresh(day: selectedDay, minutes: 18 * 60, table: inputs, history: healthHistory, locationEnabled: usesLocation)
+        sandbox.refresh(day: selectedDay, minutes: 18 * 60, table: inputs, history: healthHistory, locationEnabled: sandboxUsesLocation)
         sandbox.planner.prepareSidequests(signal: healthSignal, replaceUnchosen: replaceSidequests)
     }
 
@@ -528,5 +550,17 @@ final class BesidePresentation {
             if profileStore.state.completed.contains(legacy), backend.planner.state.marks[item.id] == nil { backend.planner.mark(item, .done) }
         }
         defaults.set(true, forKey: key)
+    }
+}
+
+/// Scenarios for the Trends quick demo. Load feeds the existing simulated-change rule.
+enum TrendScenario: String, CaseIterable, Identifiable {
+    case steady, someHarderDays, harderStretch
+    var id: String { rawValue }
+    var title: String {
+        switch self { case .steady: "Steady"; case .someHarderDays: "A few harder days"; case .harderStretch: "A harder stretch" }
+    }
+    var load: Double {
+        switch self { case .steady: 0; case .someHarderDays: 0.5; case .harderStretch: 1 }
     }
 }

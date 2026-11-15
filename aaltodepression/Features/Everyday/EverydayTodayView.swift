@@ -19,7 +19,6 @@ struct EverydayTodayView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             VStack(spacing: 16) {
-                                BesideSignalCheckInCard()
                                 BesideSidequestView().id("daily-sidequest")
                                 if presentation.sidequest != nil {
                                     Button("Show more tasks (demo)") { previewScores = startingScores }

@@ -93,6 +93,8 @@ enum BesideHealthMetric: String, CaseIterable, Identifiable {
 
 struct BesideDemoControlsView: View {
     var embeddedInDemo = false
+    /// Reading edits are an advanced demo control; the main Trends screen opens this read-only.
+    var allowsEditing = true
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.dismiss) private var dismiss
     @State private var editing: BesideHealthMetric?
@@ -133,9 +135,9 @@ struct BesideDemoControlsView: View {
                 Text(metric.title).foregroundStyle(.primary)
                 Spacer()
                 Text(metric.text(presentation.reading(metric))).foregroundStyle(.secondary)
-                if presentation.isDemoMode { Image(systemName: "pencil").font(.caption) }
+                if presentation.isDemoMode && allowsEditing { Image(systemName: "pencil").font(.caption) }
             }.padding(.vertical, 4)
-        }.buttonStyle(.plain).disabled(!presentation.isDemoMode)
+        }.buttonStyle(.plain).disabled(!presentation.isDemoMode || !allowsEditing)
     }
 }
 

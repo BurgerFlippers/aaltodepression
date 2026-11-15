@@ -1,17 +1,18 @@
 import SwiftUI
 import Charts
 
-/// Balance first; readings and judging controls remain one deliberate tap away.
+/// Balance first. A simple demo (demo data with scenarios, SMS demo) sits at the top; the advanced
+/// demo controls open from a triple tap on the Trends title.
 struct BesideDemoView: View {
     @Environment(BesidePresentation.self) private var presentation
-    @State private var showDemo = false
-    @State private var showReadings = false
-    private var recorded: SidequestDay? { presentation.liveBackend.planner.state.sidequests[presentation.day.jdn] }
+    @State private var showAdvanced = false
+    @State private var showSMS = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
+                    demoControls
                     BesideTrendBalanceView()
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Your signals").font(.title3.bold())
@@ -43,20 +44,9 @@ struct BesideDemoView: View {
                             }
                         }.background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                     }
-                    DisclosureGroup("Your chosen challenge") {
-                        if let recorded, let quest = recorded.selected {
-                            Text(BesideQuestStyle.brief(quest, smaller: recorded.useSmaller)).font(.headline).padding(.top, 10)
-                            Text(recorded.completedAt == nil ? "Selected · not marked done yet" : recorded.alsoDoneIDs.map { "Marked done · plus \($0.count) more" } ?? "Marked done").font(.caption).foregroundStyle(.secondary)
-                            Text(presentation.sidequestEvidence(on: presentation.day)).font(.caption).foregroundStyle(.secondary)
-                        } else { Text("No challenge selected for this day.").font(.subheadline).foregroundStyle(.secondary).padding(.top, 8) }
-                    }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
-                    Button { showReadings = true } label: {
-                        HStack { Label("Health readings", systemImage: "heart.text.square"); Spacer(); Image(systemName: "chevron.right").font(.caption) }
-                            .padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
-                    }.buttonStyle(.plain).accessibilityIdentifier("trends-health-readings")
                     Text(presentation.selectedDayAvailability).font(.caption).foregroundStyle(.secondary)
                 }.padding(20)
-            }.background(EverydayStyle.paper).mindHeader("Trends")
+            }.background(EverydayStyle.paper).mindHeader("Trends", onTripleTap: { showAdvanced = true })
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         Button("Previous day", systemImage: "chevron.left") { presentation.selectDay(presentation.day - 1) }
@@ -67,11 +57,33 @@ struct BesideDemoView: View {
                         Button("Next day", systemImage: "chevron.right") { presentation.selectDay(presentation.day + 1) }
                             .disabled(presentation.day >= Day(Date()))
                     }
-                    ToolbarItem(placement: .topBarTrailing) { Button("Demo", systemImage: "slider.horizontal.3") { showDemo = true }.accessibilityIdentifier("trends-demo") }
                 }
-                .sheet(isPresented: $showDemo) { BesideDemoScenarioView() }
-                .sheet(isPresented: $showReadings) { BesideDemoControlsView(embeddedInDemo: true) }
+                .sheet(isPresented: $showAdvanced) { BesideDemoScenarioView() }
+                .sheet(isPresented: $showSMS) { BesideSMSDemoSheet() }
         }
+    }
+
+    /// "Switch to demo data" with a scenario picker; "Send SMS demo" appears with A harder stretch.
+    /// Only this tab: leaving Trends clears it (returnToLive), and it never touches the advanced controls.
+    private var demoControls: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                presentation.setQuickScenario(presentation.quickScenario == nil ? .steady : nil)
+            } label: {
+                Label(presentation.quickScenario == nil ? "Switch to demo data" : "Show my data", systemImage: "testtube.2")
+                    .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44)
+            }.buttonStyle(.bordered).accessibilityIdentifier("trends-demo-data")
+            if let scenario = presentation.quickScenario {
+                Picker("Scenario", selection: Binding(get: { scenario }, set: { presentation.setQuickScenario($0) })) {
+                    ForEach(TrendScenario.allCases) { Text($0.title).tag($0) }
+                }.pickerStyle(.segmented).accessibilityIdentifier("trends-scenario")
+            }
+            if presentation.quickScenario == .harderStretch {
+                Button { showSMS = true } label: {
+                    Label("Send SMS demo", systemImage: "message").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44)
+                }.buttonStyle(.bordered).accessibilityIdentifier("trends-sms-demo")
+            }
+        }.tint(EverydayStyle.accent)
     }
 
     private func summary(_ area: TrendArea) -> String {
@@ -119,7 +131,9 @@ struct BesideTrendBalanceView: View {
             }.frame(height: 18).accessibilityHidden(true)
             HStack { Text("Your usual"); Spacer(); Text("More support") }.font(.caption).foregroundStyle(.secondary)
             BesideBalanceTrend()
-            if presentation.simulatedData {
+            if let scenario = presentation.quickScenario {
+                Label("Demo data · \(scenario.title) · your data is unchanged", systemImage: "testtube.2").font(.caption).foregroundStyle(EverydayStyle.accent)
+            } else if presentation.simulatedData {
                 Label("Simulated data · Apple Health is not read", systemImage: "testtube.2").font(.caption).foregroundStyle(EverydayStyle.accent)
             } else if presentation.hasDemoEdits {
                 Label("Demo values · Health is unchanged", systemImage: "testtube.2").font(.caption).foregroundStyle(EverydayStyle.accent)
