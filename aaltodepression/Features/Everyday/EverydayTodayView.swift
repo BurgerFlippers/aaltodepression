@@ -19,7 +19,7 @@ struct EverydayTodayView: View {
                 .onChange(of: presentation.sidequestFocus) { _, _ in proxy.scrollTo("daily-sidequest", anchor: .top) }
             }
             .background(EverydayStyle.paper)
-            .mindHeader("Routine")
+            .mindHeader("Today's one thing")
             .onChange(of: presentation.messageFocus, initial: true) { _, value in
                 if value > lastMessageRoute { lastMessageRoute = value; showMessages = true }
             }

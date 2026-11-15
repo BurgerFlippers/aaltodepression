@@ -14,7 +14,7 @@ struct BesideSidequestView: View {
             let day = presentation.day
             VStack(spacing: 12) {
                 HStack {
-                    Text(offer.selected == nil ? "Choose one for today" : "Your choice for today")
+                    Text(offer.selected == nil ? "Pick the one that fits today" : "Your choice for today")
                         .font(.subheadline).foregroundStyle(.secondary)
                     Spacer()
                     Button { showReason = true } label: { Image(systemName: "info.circle").frame(width: 44, height: 44) }
