@@ -28,8 +28,24 @@ struct BesideSidequestView: View {
                     }
                 }
                 if let quest = offer.selected {
-                    let index = offer.options.firstIndex(where: { $0.id == quest.id }) ?? 0
-                    MindChallengeTile(quest: quest, smaller: offer.useSmaller, index: index)
+                    // All three stay in place; the chosen one is marked, the others step back.
+                    ForEach(Array(offer.options.enumerated()), id: \.element.id) { index, option in
+                        let chosen = option.id == quest.id
+                        MindChallengeTile(quest: option, smaller: chosen ? offer.useSmaller : offer.startsSmall, index: index)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous)
+                                    .strokeBorder(EverydayStyle.accent, lineWidth: chosen ? 2 : 0)
+                            }
+                            .overlay(alignment: .topTrailing) {
+                                if chosen {
+                                    Image(systemName: "checkmark.circle.fill").font(.title2)
+                                        .foregroundStyle(EverydayStyle.accent).padding(16).accessibilityHidden(true)
+                                }
+                            }
+                            .opacity(chosen ? 1 : 0.35)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityAddTraits(chosen ? .isSelected : [])
+                    }
                     Text("A good choice. One small step is enough.")
                         .font(.subheadline).foregroundStyle(EverydayStyle.accent)
                         .multilineTextAlignment(.center).accessibilityIdentifier("challenge-encouragement")
