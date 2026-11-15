@@ -6,7 +6,6 @@ struct BesideDemoView: View {
     @State private var showDemo = false
     @State private var showReadings = false
     private var recorded: SidequestDay? { presentation.liveBackend.planner.state.sidequests[presentation.day.jdn] }
-    private let categories: [SidequestCategory] = [.nutrition, .movement, .sleep, .social, .medicine]
 
     var body: some View {
         NavigationStack {
@@ -16,31 +15,37 @@ struct BesideDemoView: View {
                                in: (Day(Date()) - 120).start()...Date(), displayedComponents: .date)
                         .accessibilityIdentifier("demo-day-picker")
                     BesideTrendBalanceView()
+                    if presentation.simulatedData {
+                        Label("Simulated data · Apple Health is not read", systemImage: "testtube.2")
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(EverydayStyle.accent)
+                    }
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Your routines").font(.title3.bold())
+                        Text("Your signals").font(.title3.bold())
                         VStack(spacing: 0) {
-                            ForEach(categories, id: \.rawValue) { category in
+                            ForEach(TrendArea.allCases) { area in
                                 DisclosureGroup {
-                                    ForEach(metrics(category)) { metric in
+                                    ForEach(area.metrics) { metric in
                                         LabeledContent(metric.title, value: metric.text(presentation.reading(metric)))
                                             .font(.subheadline).padding(.vertical, 5)
                                     }
-                                    if category == .social { Text("Your conversations stay private. Use For you to reach out.").font(.subheadline).foregroundStyle(.secondary) }
-                                    if category == .medicine { Text("Keep following your prescribed schedule. Medication tracking is not connected here.").font(.subheadline).foregroundStyle(.secondary) }
+                                    ForEach(regularityRows(area), id: \.0) { row in
+                                        LabeledContent(row.0, value: row.1).font(.subheadline).padding(.vertical, 5)
+                                    }
+                                    Text(area.note).font(.caption).foregroundStyle(.secondary).padding(.top, 4)
                                 } label: {
                                     HStack(spacing: 14) {
-                                        Image(systemName: symbol(category)).font(.title3).foregroundStyle(EverydayStyle.accent).frame(width: 28)
+                                        Image(systemName: area.symbol).font(.title3).foregroundStyle(EverydayStyle.accent).frame(width: 28)
                                         VStack(alignment: .leading, spacing: 4) {
-                                            Text(category.title).font(.headline).foregroundStyle(.primary)
-                                            Text(summary(category)).font(.caption).foregroundStyle(.secondary)
+                                            Text(area.title).font(.headline).foregroundStyle(.primary)
+                                            Text(summary(area)).font(.caption).foregroundStyle(.secondary)
                                         }
                                         Spacer(minLength: 4)
-                                        if let score = presentation.categoryScore(category) {
+                                        if let kind = area.score, let score = presentation.areaScore(kind) {
                                             Text("\(Int(score.rounded()))").font(.title3.monospacedDigit().bold()).foregroundStyle(.primary)
                                         }
                                     }.padding(.vertical, 10)
                                 }.padding(.horizontal, 16).padding(.vertical, 4)
-                                if category != categories.last { Divider().padding(.leading, 58) }
+                                if area != TrendArea.allCases.last { Divider().padding(.leading, 58) }
                             }
                         }.background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20))
                     }
@@ -64,26 +69,26 @@ struct BesideDemoView: View {
         }
     }
 
-    private func metrics(_ category: SidequestCategory) -> [BesideHealthMetric] {
-        switch category {
-        case .nutrition: [.foodEnergy, .water, .protein, .carbs, .fat]
-        case .movement: [.steps, .exercise, .daylight]
-        case .sleep: [.sleep, .bedtime, .wake]
-        default: []
+    private func summary(_ area: TrendArea) -> String {
+        if let kind = area.score, let score = presentation.areaScore(kind) {
+            return score >= 70 ? "Close to your usual" : "Different from your usual"
         }
-    }
-    private func summary(_ category: SidequestCategory) -> String {
-        if let score = presentation.categoryScore(category) { return score >= 70 ? "Close to your usual" : "Different from your usual" }
-        switch category {
-        case .nutrition: return presentation.reading(.foodEnergy).map { BesideHealthMetric.foodEnergy.text($0) + " logged" } ?? "No food log for this day"
-        case .movement: return presentation.reading(.steps).map { BesideHealthMetric.steps.text($0) } ?? "No movement reading"
-        case .sleep: return presentation.reading(.sleep).map { BesideHealthMetric.sleep.text($0) } ?? "No sleep reading"
-        case .social: return "A little company can help"
-        case .medicine: return "Your prescribed routine"
+        if area == .places && !presentation.locationAvailable { return "Needs Location · not connected" }
+        if let first = area.metrics.first(where: { presentation.reading($0) != nil }) {
+            return area.score == nil ? first.text(presentation.reading(first)) : "Learning your usual"
         }
+        return "Nothing recorded for this day"
     }
-    private func symbol(_ category: SidequestCategory) -> String {
-        switch category { case .nutrition: "fork.knife"; case .movement: "figure.walk"; case .sleep: "moon.zzz"; case .social: "person.2"; case .medicine: "pills" }
+
+    /// Regularity rows: this week's night-to-night spread against the person's own earlier weeks.
+    private func regularityRows(_ area: TrendArea) -> [(String, String)] {
+        guard area == .rhythm else { return [] }
+        return [("Bedtime regularity", F.bedtime), ("Wake-up regularity", F.wake)].compactMap { title, key in
+            guard let week = presentation.spreadMinutes(key, endingOn: presentation.day) else { return nil }
+            let usual = presentation.spreadMinutes(key, endingOn: presentation.day - 7, days: 28)
+            let text = "± \(Int(week.rounded())) min" + (usual.map { " · usually ± \(Int($0.rounded()))" } ?? "")
+            return (title, text)
+        }
     }
 }
 
@@ -114,5 +119,54 @@ struct BesideTrendBalanceView: View {
         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
             .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 22))
             .accessibilityElement(children: .combine)
+    }
+}
+
+/// What Trends shows, ordered by how much the relapse evidence supports each signal.
+/// Social contact is not passively readable on iOS, so it is not shown as a metric.
+private enum TrendArea: CaseIterable, Identifiable {
+    case sleep, rhythm, places, movement, daylight, body, mind, food
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .sleep: "Sleep"; case .rhythm: "Daily rhythm"; case .places: "Getting out"; case .movement: "Movement"
+        case .daylight: "Daylight"; case .body: "Body"; case .mind: "How you feel"; case .food: "Food"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .sleep: "moon.zzz"; case .rhythm: "clock.arrow.circlepath"; case .places: "mappin.and.ellipse"; case .movement: "figure.walk"
+        case .daylight: "sun.max"; case .body: "heart"; case .mind: "face.smiling"; case .food: "fork.knife"
+        }
+    }
+    var score: ScoreKind? {
+        switch self {
+        case .sleep: .sleep; case .rhythm: .rhythm; case .places: .places; case .movement: .movement
+        case .daylight: .daylight; case .body: .body; case .mind, .food: nil
+        }
+    }
+    var metrics: [BesideHealthMetric] {
+        switch self {
+        case .sleep: [.sleep, .bedtime, .wake, .efficiency]
+        case .rhythm: [.activeHours]
+        case .places: [.timeAway, .places]
+        case .movement: [.steps, .exercise, .walkingSpeed]
+        case .daylight: [.daylight]
+        case .body: [.heartRate, .breathing, .temperature, .hrv]
+        case .mind: [.stateOfMind, .mindful, .phq9, .gad7]
+        case .food: [.foodEnergy, .water, .protein, .carbs, .fat]
+        }
+    }
+    var note: String {
+        switch self {
+        case .sleep: "Compared with your own nights. Too little and too much both count."
+        case .rhythm: "A steady daily rhythm is one of the clearest signs of how routines are going."
+        case .places: "Time away from home and places visited. Collected on this iPhone from install onward."
+        case .movement: "An iPhone left on the table counts fewer steps, so a single low day means little."
+        case .daylight: "Time in daylight from Apple Watch, or estimated from daytime walking."
+        case .body: "Resting heart rate is the most reliable here. Heart rate variability is noisy on a watch."
+        case .mind: "What you log in the Health app. Not scored; it helps check the other signals."
+        case .food: "Only if you log food. Not scored. A missing log does not mean a skipped meal."
+        }
     }
 }

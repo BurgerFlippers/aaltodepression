@@ -22,6 +22,12 @@ struct BesideDemoScenarioView: View {
         NavigationStack {
             Form {
                 Section {
+                    Toggle("Use simulated data", isOn: Binding(get: { presentation.simulatedData }, set: { presentation.simulatedData = $0 }))
+                        .accessibilityIdentifier("demo-simulated-data")
+                } header: { Text("Data") } footer: {
+                    Text("Replaces Apple Health readings with 60 simulated days ending today: sleep, rhythm, places, movement, heart, mood and food logs. Health is never changed. Turn off to see your own data again.")
+                }
+                Section {
                     LabeledContent("Demo balance", value: presentation.healthSignal?.result.steadiness.map { "\(Int($0.rounded())) / 100" } ?? "Learning your usual")
                     Text(presentation.balanceTitle).font(.subheadline).foregroundStyle(EverydayStyle.accent)
                     Slider(value: $load, in: 0...1, step: 0.05) { Text("Demo difficulty") } onEditingChanged: { editing in

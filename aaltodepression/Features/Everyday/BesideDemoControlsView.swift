@@ -21,17 +21,19 @@ enum BesideHealthAccess {
 
 enum BesideHealthMetric: String, CaseIterable, Identifiable {
     case steps, sleep, bedtime, wake, exercise, daylight, heartRate, hrv, breathing, temperature, walkingSpeed
+    case activeHours, efficiency, timeAway, places
     case foodEnergy, water, protein, carbs, fat, mindful, stateOfMind, phq9, gad7
     var id: String { rawValue }
     var group: String {
         switch self {
         case .foodEnergy, .water, .protein, .carbs, .fat: "Nutrition"
         case .mindful, .stateOfMind, .phq9, .gad7: "Mind"
+        case .timeAway, .places: "Places"
         default: "Daily signals"
         }
     }
-    var isContextOnly: Bool { group != "Daily signals" }
-    var wholeNumber: Bool { self == .steps || self == .phq9 || self == .gad7 }
+    var isContextOnly: Bool { group == "Nutrition" || group == "Mind" }
+    var wholeNumber: Bool { self == .steps || self == .places || self == .phq9 || self == .gad7 }
     var key: String {
         switch self {
         case .steps: F.steps; case .sleep: F.sleepHours; case .bedtime: F.bedtime; case .wake: F.wake
@@ -40,6 +42,8 @@ enum BesideHealthMetric: String, CaseIterable, Identifiable {
         case .foodEnergy: F.dietaryEnergy; case .water: F.dietaryWater; case .protein: F.dietaryProtein
         case .carbs: F.dietaryCarbs; case .fat: F.dietaryFat; case .mindful: F.mindfulMin
         case .stateOfMind: F.stateOfMindValence; case .phq9: F.phq9; case .gad7: F.gad7
+        case .activeHours: F.activeHours; case .efficiency: F.sleepEfficiency
+        case .timeAway: F.awayHours; case .places: F.placesVisited
         }
     }
     var title: String { FeatureCatalog.byKey[key]?.title ?? rawValue }
@@ -50,6 +54,7 @@ enum BesideHealthMetric: String, CaseIterable, Identifiable {
         case .breathing: "per minute"; case .temperature: "°C"; case .walkingSpeed: "m/s"
         case .foodEnergy: "kcal"; case .water: "mL"; case .protein, .carbs, .fat: "g"
         case .mindful: "minutes"; case .stateOfMind: "valence"; case .phq9: "/ 27"; case .gad7: "/ 21"
+        case .activeHours, .timeAway: "hours"; case .efficiency: "share"; case .places: "places"
         }
     }
     var range: ClosedRange<Double> {
@@ -59,6 +64,7 @@ enum BesideHealthMetric: String, CaseIterable, Identifiable {
         case .breathing: 4...60; case .temperature: 25...45; case .walkingSpeed: 0...5
         case .foodEnergy: 0...15000; case .water: 0...15000; case .protein, .carbs, .fat: 0...2000
         case .mindful: 0...1440; case .stateOfMind: -1...1; case .phq9: 0...27; case .gad7: 0...21
+        case .activeHours, .timeAway: 0...24; case .efficiency: 0...1; case .places: 0...50
         }
     }
     var initial: Double {
@@ -68,6 +74,7 @@ enum BesideHealthMetric: String, CaseIterable, Identifiable {
         case .breathing: 15; case .temperature: 36; case .walkingSpeed: 1.2
         case .foodEnergy: 2000; case .water: 1500; case .protein: 60; case .carbs: 250; case .fat: 70
         case .mindful: 10; case .stateOfMind: 0; case .phq9, .gad7: 0
+        case .activeHours: 8; case .efficiency: 0.9; case .timeAway: 5; case .places: 3
         }
     }
     func text(_ value: Double?) -> String {
@@ -76,7 +83,8 @@ enum BesideHealthMetric: String, CaseIterable, Identifiable {
             let total = Int((value + (self == .bedtime ? 18 : 0)) * 60) % 1440
             return String(format: "%02d:%02d", total / 60, total % 60)
         }
-        if self == .sleep { return "\(Int(value)) h \(Int((value * 60).rounded()) % 60) min" }
+        if self == .efficiency { return "\(Int((value * 100).rounded())) %" }
+        if self == .sleep || self == .timeAway { return "\(Int(value)) h \(Int((value * 60).rounded()) % 60) min" }
         return "\(value.formatted(.number.precision(.fractionLength(0...2)))) \(unit)"
     }
 }
@@ -95,7 +103,7 @@ struct BesideDemoControlsView: View {
                     Text(presentation.selectedDayAvailability).font(.caption).foregroundStyle(.secondary)
                     if presentation.hasDemoEdits { Label("Demo values", systemImage: "testtube.2").foregroundStyle(EverydayStyle.accent) }
                 }
-                ForEach(["Daily signals", "Nutrition", "Mind"], id: \.self) { group in
+                ForEach(["Daily signals", "Places", "Nutrition", "Mind"], id: \.self) { group in
                     Section(group) {
                         ForEach(BesideHealthMetric.allCases.filter { $0.group == group && presentation.reading($0) != nil }) { metric in row(metric) }
                         DisclosureGroup("Not recorded for this day") {
