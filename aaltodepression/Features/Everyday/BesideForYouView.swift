@@ -2,15 +2,18 @@ import SwiftUI
 
 struct BesideForYouView: View {
     @State private var reachOut = false
+    @State private var support = false
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    action("Reach out", detail: "A little company, in your own words.", symbol: "bubble.left.and.bubble.right", color: EverydayStyle.mint) { reachOut = true }
+                    action("Reach out", detail: "A little company, in your own words.", symbol: "bubble.left.and.bubble.right", color: BesideQuestStyle.cardColor(0)) { reachOut = true }
+                    action("Get support", detail: "Call someone you know, or find urgent help.", symbol: "person.2", color: BesideQuestStyle.cardColor(0)) { support = true }
                 }.padding(20)
             }
-            .background(EverydayStyle.paper).navigationTitle("For you")
+            .background(EverydayStyle.paper).mindHeader("For you")
             .sheet(isPresented: $reachOut) { EverydaySocialView() }
+            .sheet(isPresented: $support) { EverydayHelpView() }
         }
     }
     private func action(_ title: String, detail: String, symbol: String, color: Color, perform: @escaping () -> Void) -> some View {
@@ -24,7 +27,7 @@ struct BesideForYouView: View {
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(.secondary)
             }.padding(22).frame(maxWidth: .infinity, minHeight: 128, alignment: .leading)
-                .background(color, in: RoundedRectangle(cornerRadius: 22))
-        }.buttonStyle(.plain).accessibilityIdentifier("for-you-reach-out")
+                .background(color, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
+        }.buttonStyle(.plain).accessibilityIdentifier(title == "Reach out" ? "for-you-reach-out" : "for-you-support")
     }
 }

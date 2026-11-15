@@ -14,7 +14,7 @@ struct BesideSidequestView: View {
             let day = presentation.day
             VStack(spacing: 12) {
                 HStack {
-                    Text(offer.selected == nil ? "Choose one for today" : "Your choice for today")
+                    Text(offer.selected == nil ? "Pick the one that fits today" : "Your choice for today")
                         .font(.subheadline).foregroundStyle(.secondary)
                     Spacer()
                     Button { showReason = true } label: { Image(systemName: "info.circle").frame(width: 44, height: 44) }
@@ -28,8 +28,24 @@ struct BesideSidequestView: View {
                     }
                 }
                 if let quest = offer.selected {
-                    let index = offer.options.firstIndex(where: { $0.id == quest.id }) ?? 0
-                    MindChallengeTile(quest: quest, smaller: offer.useSmaller, index: index)
+                    // All three stay in place; the chosen one is marked, the others step back.
+                    ForEach(Array(offer.options.enumerated()), id: \.element.id) { index, option in
+                        let chosen = option.id == quest.id
+                        MindChallengeTile(quest: option, smaller: chosen ? offer.useSmaller : offer.startsSmall, index: index)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous)
+                                    .strokeBorder(EverydayStyle.accent, lineWidth: chosen ? 2 : 0)
+                            }
+                            .overlay(alignment: .topTrailing) {
+                                if chosen {
+                                    Image(systemName: "checkmark.circle.fill").font(.title2)
+                                        .foregroundStyle(EverydayStyle.accent).padding(16).accessibilityHidden(true)
+                                }
+                            }
+                            .opacity(chosen ? 1 : 0.35)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityAddTraits(chosen ? .isSelected : [])
+                    }
                     Text("A good choice. One small step is enough.")
                         .font(.subheadline).foregroundStyle(EverydayStyle.accent)
                         .multilineTextAlignment(.center).accessibilityIdentifier("challenge-encouragement")
@@ -80,9 +96,8 @@ private struct MindChallengeTile: View {
         }
         .padding(.horizontal, 24).padding(.vertical, 18)
         .frame(maxWidth: .infinity, minHeight: 150)
-        .background(BesideQuestStyle.cardColor(index), in: RoundedRectangle(cornerRadius: 22))
-        .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(EverydayStyle.accent.opacity(0.12), lineWidth: 1) }
-        .contentShape(RoundedRectangle(cornerRadius: 22))
+        .background(BesideQuestStyle.cardColor(index), in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
     }
 }
 
@@ -126,7 +141,7 @@ nonisolated enum BesideQuestStyle {
     }
 
     static func cardColor(_ index: Int) -> Color {
-        [Color(red: 0.20, green: 0.15, blue: 0.28), Color(red: 0.24, green: 0.17, blue: 0.32), Color(red: 0.28, green: 0.19, blue: 0.36)][abs(index % 3)]
+        Color(red: 0.22, green: 0.17, blue: 0.31)
     }
 
     static func visual(_ quest: Sidequest) -> String {

@@ -52,6 +52,6 @@ struct BesideCheckInView: View {
                     }.buttonStyle(.plain).accessibilityLabel(label).accessibilityAddTraits(selected.wrappedValue == index + 1 ? .isSelected : [])
                 }
             }
-        }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(color, in: RoundedRectangle(cornerRadius: 20))
+        }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(color, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
     }
 }

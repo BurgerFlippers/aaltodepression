@@ -18,12 +18,20 @@ final class BesidePresentation {
     private(set) var healthReadAt: Date?
     private(set) var demoLoad: Double?
     private(set) var demoRecipientID: String?
+    /// Demo only: hand-set area scores for the selected day, to see how the challenges respond.
+    private(set) var scoreOverrides: [ScoreKind: Double] = [:]
     private var demoEdits: [Int: [String: Double]] = [:]
     let profileStore: EverydayStore
     private(set) var isRefreshing = false
     private var table = FeatureTable()
     private var pendingSensorRefresh = false
     private let defaults = UserDefaults.standard
+    /// Demo data mode: a simulated history replaces Health readings everywhere until it is turned off.
+    var simulatedData: Bool = UserDefaults.standard.bool(forKey: "mind.simulatedData") {
+        didSet { defaults.set(simulatedData, forKey: "mind.simulatedData"); Task { await refresh() } }
+    }
+    /// Places needs location history; only the simulated history provides it for now.
+    private var usesLocation: Bool { simulatedData }
 
     init(profileStore: EverydayStore, backend: Backend = Backend()) {
         self.profileStore = profileStore
@@ -88,7 +96,10 @@ final class BesidePresentation {
         }
         profileStore.refreshDay()
         syncSetup()
-        if readSensors {
+        if simulatedData {
+            table = SimulatedSource.table(endingOn: Day(Date()))
+            healthStatus = "Simulated data · Apple Health is not read while this is on."
+        } else if readSensors {
             await profileStore.refreshSensors()
             var fresh = FeatureTable()
             var allHealthQueriesFailed = false
@@ -131,8 +142,8 @@ final class BesidePresentation {
             if allHealthQueriesFailed { table.merge(fresh) } else { table = fresh }
         }
         let inputs = planningTable(table)
-        let history = StepEngine.run(table: inputs, through: Day(Date()), homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
-        liveBackend.refresh(table: inputs, history: history, locationEnabled: false)
+        let history = StepEngine.run(table: inputs, through: Day(Date()), homeTimeZone: TimeZone.current.identifier, locationEnabled: usesLocation)
+        liveBackend.refresh(table: inputs, history: history, locationEnabled: usesLocation)
         if selectedDay != nil { refreshSandbox() } else { healthHistory = history }
         if selectedDay == nil { migrateMarksIfNeeded() }
         backend.planner.prepareSidequests(signal: healthSignal)
@@ -208,9 +219,10 @@ final class BesidePresentation {
     }
 
     var selectedDayAvailability: String {
-        let count = BesideHealthMetric.allCases.filter { reading($0) != nil }.count
-        if day == Day(Date()) { return "Today is still in progress · \(count) of \(BesideHealthMetric.allCases.count) readings recorded so far." }
-        return "\(count) of \(BesideHealthMetric.allCases.count) readings shared for this day. Not every device or tracker records every type."
+        let metrics = BesideHealthMetric.allCases.filter { $0.group != "Places" || usesLocation }
+        let count = metrics.filter { reading($0) != nil }.count
+        if day == Day(Date()) { return "Today is still in progress · \(count) of \(metrics.count) readings recorded so far." }
+        return "\(count) of \(metrics.count) readings shared for this day. Not every device or tracker records every type."
     }
 
     var isDemoMode: Bool { selectedDay != nil }
@@ -228,7 +240,7 @@ final class BesidePresentation {
         #if DEBUG
         print("Mind Trends day: \(day); availableTypes=\(table.numbers.values.filter { $0[day] != nil }.count)")
         #endif
-        if selectedDay != day { demoLoad = nil; demoRecipientID = nil }
+        if selectedDay != day { demoLoad = nil; demoRecipientID = nil; scoreOverrides.removeAll() }
         selectedDay = day
         backend = sandbox!
         refreshSandbox()
@@ -236,10 +248,11 @@ final class BesidePresentation {
 
     func returnToLive() {
         selectedDay = nil
+        scoreOverrides.removeAll()
         demoLoad = nil
         demoRecipientID = nil
         backend = liveBackend
-        healthHistory = StepEngine.run(table: planningTable(table), through: Day(Date()), homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
+        healthHistory = StepEngine.run(table: planningTable(table), through: Day(Date()), homeTimeZone: TimeZone.current.identifier, locationEnabled: usesLocation)
         liveBackend.planner.prepareSidequests(signal: healthSignal)
     }
 
@@ -281,8 +294,15 @@ final class BesidePresentation {
         refreshSandbox(replaceSidequests: true)
     }
 
+    func setScoreOverride(_ kind: ScoreKind, to value: Double?) {
+        guard isDemoMode else { return }
+        scoreOverrides[kind] = value.map { min(100, max(0, $0)) }
+        refreshSandbox(replaceSidequests: true)
+    }
+
     func resetDemoScenario() {
         guard let selectedDay else { return }
+        scoreOverrides.removeAll()
         demoLoad = nil
         demoRecipientID = nil
         demoEdits.removeAll()
@@ -319,6 +339,24 @@ final class BesidePresentation {
         }
     }
 
+    func areaScore(_ kind: ScoreKind) -> Double? {
+        guard signalHasBaseline else { return nil }
+        return healthSignal?.result.scores[kind]
+    }
+
+    /// Night-to-night spread (minutes) of a clock-time reading such as bedtime.
+    /// Regularity, not the amount, carries the strongest relapse evidence for sleep.
+    func spreadMinutes(_ key: String, endingOn end: Day, days: Int = 7) -> Double? {
+        let values = (0..<days).compactMap { displayedTable.value(key, end - $0) }
+        guard values.count >= max(4, days / 2) else { return nil }
+        // Robust spread (scaled median absolute deviation), so one late night does not swamp a steady week.
+        func median(_ xs: [Double]) -> Double { let s = xs.sorted(); return s.count % 2 == 1 ? s[s.count / 2] : (s[s.count / 2 - 1] + s[s.count / 2]) / 2 }
+        let mid = median(values)
+        return median(values.map { abs($0 - mid) }) * 1.4826 * 60
+    }
+
+    var locationAvailable: Bool { usesLocation }
+
     private func refreshSandbox(replaceSidequests: Bool = false) {
         guard let selectedDay, let sandbox else { return }
         if demoLoad != nil {
@@ -334,8 +372,17 @@ final class BesidePresentation {
             if setup != sandbox.planner.setup { sandbox.planner.updateSetup(setup) }
         }
         let inputs = planningTable(displayedTable.truncated(through: selectedDay))
-        healthHistory = StepEngine.run(table: inputs, through: selectedDay, homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
-        sandbox.refresh(day: selectedDay, minutes: 18 * 60, table: inputs, history: healthHistory, locationEnabled: false)
+        healthHistory = StepEngine.run(table: inputs, through: selectedDay, homeTimeZone: TimeZone.current.identifier, locationEnabled: usesLocation)
+        if !scoreOverrides.isEmpty, let i = healthHistory.firstIndex(where: { $0.day == selectedDay }) {
+            let old = healthHistory[i]
+            var result = old.result
+            for (kind, value) in scoreOverrides { result.scores[kind] = value }
+            let weight = result.scores.keys.map(\.weight).reduce(0, +)
+            result.steadiness = weight > 0 ? result.scores.map { $0.key.weight * $0.value }.reduce(0, +) / weight : nil
+            healthHistory[i] = StepDay(result: result, baselineDay: old.baselineDay, isDrift: old.isDrift,
+                                       driftDaysInLastWeek: old.driftDaysInLastWeek, step: old.step, since: old.since)
+        }
+        sandbox.refresh(day: selectedDay, minutes: 18 * 60, table: inputs, history: healthHistory, locationEnabled: usesLocation)
         sandbox.planner.prepareSidequests(signal: healthSignal, replaceUnchosen: replaceSidequests)
     }
 

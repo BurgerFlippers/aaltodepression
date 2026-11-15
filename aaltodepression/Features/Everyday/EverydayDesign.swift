@@ -6,6 +6,7 @@ nonisolated enum EverydayStyle {
     static let paper = Color(uiColor: .systemBackground)
     static let surface = Color(uiColor: .secondarySystemGroupedBackground)
     static let surfaceRaised = Color(uiColor: .tertiarySystemGroupedBackground)
+    static let cardRadius: CGFloat = 32
     static let accent = Color(red: 0.76, green: 0.65, blue: 0.97)
     static let action = Color(red: 0.44, green: 0.28, blue: 0.70)
     static let orange = accent
@@ -25,7 +26,7 @@ struct EverydayPrimaryButton: ButtonStyle {
         configuration.label.font(.body.weight(.semibold))
             .frame(maxWidth: .infinity, minHeight: 54)
             .foregroundStyle(.white)
-            .background(EverydayStyle.action, in: RoundedRectangle(cornerRadius: 14))
+            .background(EverydayStyle.action, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
     }
 }
@@ -46,7 +47,7 @@ struct EverydayHeading: View {
 struct BesideLogoView: View {
     var body: some View {
         Image("BesideMark").resizable().scaledToFit().saturation(0).colorMultiply(EverydayStyle.accent)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
             .accessibilityHidden(true)
     }
 }
@@ -56,6 +57,46 @@ struct EverydayNotice: View {
     var body: some View {
         Text(text).font(.footnote).foregroundStyle(EverydayStyle.muted)
             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-            .background(EverydayStyle.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: 18))
+            .background(EverydayStyle.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
     }
+}
+
+/// Flat four-step scale from "your usual" to "more support". No gradients: each step is one solid colour.
+struct BalanceScale: View {
+    static let colors: [Color] = [
+        Color(red: 0.55, green: 0.80, blue: 0.50), Color(red: 0.93, green: 0.78, blue: 0.30),
+        Color(red: 0.90, green: 0.45, blue: 0.25), Color(red: 0.70, green: 0.16, blue: 0.22)
+    ]
+    /// Colour for a 0...100 balance value, matching the scale.
+    static func color(for value: Double) -> Color {
+        value >= 80 ? colors[0] : value >= 60 ? colors[1] : value >= 40 ? colors[2] : colors[3]
+    }
+    var body: some View {
+        HStack(spacing: 3) { ForEach(0..<4, id: \.self) { Capsule().fill(Self.colors[$0]) } }.frame(height: 8)
+    }
+}
+
+/// One header for every tab: the page title sits on the toolbar row, left, beside the page's buttons.
+private struct MindHeader: ViewModifier {
+    let title: String
+    func body(content: Content) -> some View {
+        content
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
+                if #available(iOS 26.0, *) {
+                    ToolbarItem(placement: .topBarLeading) { headerText }.sharedBackgroundVisibility(.hidden)
+                } else {
+                    ToolbarItem(placement: .topBarLeading) { headerText }
+                }
+            }
+    }
+    private var headerText: some View {
+        Text(title).font(.title.bold()).foregroundStyle(.primary).fixedSize().accessibilityAddTraits(.isHeader)
+    }
+}
+
+extension View {
+    func mindHeader(_ title: String) -> some View { modifier(MindHeader(title: title)) }
 }

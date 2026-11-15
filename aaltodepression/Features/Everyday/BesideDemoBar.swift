@@ -24,10 +24,7 @@ struct BesideDemoBar: View {
                     }
                     Text(dayLabel).font(.caption).fixedSize(horizontal: false, vertical: true)
                     GeometryReader { geometry in
-                        Capsule().fill(LinearGradient(colors: [
-                            Color(red: 0.77, green: 0.91, blue: 0.68), Color(red: 0.95, green: 0.83, blue: 0.36),
-                            Color(red: 0.91, green: 0.41, blue: 0.23), Color(red: 0.49, green: 0.06, blue: 0.13)
-                        ], startPoint: .leading, endPoint: .trailing)).frame(height: 8).frame(height: 18)
+                        BalanceScale().frame(height: 18)
                         if let position = presentation.indicatorPosition {
                             Circle().fill(.white)
                                 .overlay { Circle().strokeBorder(Color.black, style: StrokeStyle(lineWidth: 3, dash: presentation.signalHasBaseline ? [] : [3, 2])) }
@@ -98,7 +95,7 @@ struct BesideWinsView: View {
             }
             Spacer(minLength: 0)
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
-            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20))
+            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
             .animation(reduceMotion ? nil : .spring(duration: 0.4), value: presentation.winCount)
             .sensoryFeedback(.success, trigger: feedback)
             .onChange(of: presentation.winCount) { old, new in if new > old { feedback.toggle() } }

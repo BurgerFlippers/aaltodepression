@@ -3,7 +3,6 @@ import SwiftUI
 /// The live day only. History and editable judging data live in the Demo tab.
 struct EverydayTodayView: View {
     @Environment(BesidePresentation.self) private var presentation
-    @State private var showHelp = false
     @State private var showMessages = false
     @State private var lastMessageRoute = 0
 
@@ -11,18 +10,19 @@ struct EverydayTodayView: View {
         NavigationStack {
             ScrollViewReader { proxy in
                 ScrollView {
-                    BesideSidequestView().id("daily-sidequest").padding(.horizontal, 16).padding(.vertical, 4)
+                    VStack(spacing: 16) {
+                        BesideSignalCheckInCard()
+                        BesideSidequestView().id("daily-sidequest")
+                    }.padding(.horizontal, 16).padding(.vertical, 4)
                 }
                 .refreshable { await presentation.refresh() }
                 .onChange(of: presentation.sidequestFocus) { _, _ in proxy.scrollTo("daily-sidequest", anchor: .top) }
             }
             .background(EverydayStyle.paper)
-            .navigationTitle("Mind").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Support", systemImage: "person.2") { showHelp = true } } }
+            .mindHeader("Today's one thing")
             .onChange(of: presentation.messageFocus, initial: true) { _, value in
                 if value > lastMessageRoute { lastMessageRoute = value; showMessages = true }
             }
-            .sheet(isPresented: $showHelp) { EverydayHelpView() }
             .sheet(isPresented: $showMessages) {
                 EverydaySocialView(sidequest: presentation.sidequest?.selected, smallerQuest: presentation.sidequest?.useSmaller ?? false)
             }

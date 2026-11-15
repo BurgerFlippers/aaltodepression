@@ -59,7 +59,7 @@ struct EverydaySocialView: View {
                             Text("A little company for this?").font(.title2.bold())
                             Text((smallerQuest ? sidequest.smaller : sidequest.regular).title).font(.body)
                         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-                            .background(BesideQuestStyle.color(sidequest.category), in: RoundedRectangle(cornerRadius: 24))
+                            .background(BesideQuestStyle.color(sidequest.category), in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                     } else {
                         Text(prompt?.title ?? "Who would you like to hear from?").font(.title2.bold())
                         if let prompt { Text(prompt.explanation).font(.subheadline).foregroundStyle(.secondary) }
@@ -81,7 +81,7 @@ struct EverydaySocialView: View {
                                         Spacer()
                                         Image(systemName: person.id == personID ? "checkmark.circle.fill" : "circle").font(.title2)
                                     }.padding(18).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-                                        .background(person.id == personID ? EverydayStyle.mint : EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20))
+                                        .background(person.id == personID ? EverydayStyle.mint : EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                                 }.buttonStyle(.plain).accessibilityValue(person.id == personID ? "Selected" : "")
                             }
                             if contacts.count > 3 {
@@ -102,16 +102,16 @@ struct EverydaySocialView: View {
                                     }.pickerStyle(.menu)
                                 }
                                 TextEditor(text: $draft).frame(minHeight: 110).padding(10).scrollContentBackground(.hidden)
-                                    .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 14)).accessibilityLabel("Your message")
+                                    .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous)).accessibilityLabel("Your message")
                                 Button("Use suggested words") {
                                     if draft.isEmpty || draft == generated { useSuggestion() } else { replaceDraft = true }
                                 }.font(.subheadline)
                             }.padding(.top, 14)
-                        }.font(.headline).padding(18).background(EverydayStyle.peach, in: RoundedRectangle(cornerRadius: 20))
+                        }.font(.headline).padding(18).background(EverydayStyle.peach, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                             .accessibilityIdentifier("reach-out-writing-help")
                         if inviting || testMessage != nil {
                             if !writingHelp { Text(draft).font(.body).padding(18).frame(maxWidth: .infinity, alignment: .leading)
-                                .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20)) }
+                                .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous)) }
                             Button(testMessage == nil ? "Review invite to \(selected?.name ?? "friend")" : "Review test to \(selected?.name ?? "Konsta")") { review(draft) }
                                 .buttonStyle(EverydayPrimaryButton())
                                 .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
