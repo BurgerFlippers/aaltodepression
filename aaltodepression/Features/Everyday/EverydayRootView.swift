@@ -26,6 +26,7 @@ private struct EverydaySessionView: View {
                     TabView(selection: $selectedTab) {
                         EverydayTodayView().tabItem { Label("Routine", systemImage: "sun.max") }.tag(0)
                         BesideDemoView().tabItem { Label("Trends", systemImage: "chart.xyaxis.line") }.tag(2)
+                        BesideForYouView().tabItem { Label("For you", systemImage: "heart") }.tag(3)
                         EverydayProfileView().tabItem { Label("You", systemImage: "person.crop.circle") }.tag(1)
                     }
                 } else { EverydayOnboardingView() }

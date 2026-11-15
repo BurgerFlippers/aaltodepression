@@ -348,6 +348,27 @@ final class Planner {
         return state.outbox.first { $0.id == message?.id }
     }
 
+    /// Prepares one pending test using the real support rule. Never confirms or simulates a reply.
+    @discardableResult func prepareDemoSMS() -> OutgoingMessage? {
+        guard isDemo, state.setup.helpConsent == .askEachTime,
+              let suggestion = InterventionRules.callSignal(context) else { return nil }
+        let message = state.queue(suggestion, now: minutes, at: now, simulateReply: false)
+        rebuild(autoSend: false)
+        save()
+        return message
+    }
+
+    /// MessageUI's send callback is distinct from simulated confirmation/replies.
+    func recordDemoSMSSubmitted(messageID: String) {
+        guard isDemo, let index = state.outbox.firstIndex(where: { $0.id == messageID }),
+              state.outbox[index].status == .pending else { return }
+        state.outbox[index].status = .sent
+        state.outbox[index].confirmed = true
+        state.outbox[index].simulatedReply = nil
+        rebuild(autoSend: false)
+        save()
+    }
+
     // MARK: - Safety
 
     /// Opens the safety questions (from the safety card).

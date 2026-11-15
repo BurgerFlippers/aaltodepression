@@ -86,102 +86,46 @@ struct BesideDemoControlsView: View {
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.dismiss) private var dismiss
     @State private var editing: BesideHealthMetric?
-    @State private var confirmReset = false
     @State private var connecting = false
-    @State private var automaticTopic: SupportTopic = .groceries
-    @State private var automaticResult: String?
-    @State private var showRequests = false
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    LabeledContent("Readings for", value: presentation.day.start().formatted(date: .abbreviated, time: .omitted))
+                    LabeledContent("Day", value: presentation.day.start().formatted(date: .abbreviated, time: .omitted))
                     Text(presentation.selectedDayAvailability).font(.caption).foregroundStyle(.secondary)
-                    if !embeddedInDemo { DatePicker("Day", selection: Binding(get: { presentation.day.start() }, set: { presentation.selectDay(Day($0)) }),
-                               in: (Calendar.current.date(byAdding: .day, value: -120, to: Date()) ?? Date())...Date(), displayedComponents: .date) }
-                    if presentation.isDemoMode {
-                        Label(presentation.hasDemoEdits ? "Demo copy · edited readings" : "Demo copy · real readings", systemImage: "testtube.2")
-                        if !embeddedInDemo { Button("Return to live today") { presentation.returnToLive() } }
-                    } else {
-                        Label("Live today", systemImage: "waveform.path")
-                        Button("Edit today in demo") { presentation.selectDay(Day(Date())) }
-                    }
-                } header: { Text("Explore a day") } footer: { Text("Selecting a date opens a separate demo copy. Reading edits and task marks stay in that copy for this session. Apple Health and your live records stay unchanged.") }
+                    if presentation.hasDemoEdits { Label("Demo values", systemImage: "testtube.2").foregroundStyle(EverydayStyle.accent) }
+                }
                 ForEach(["Daily signals", "Nutrition", "Mind"], id: \.self) { group in
-                Section {
-                    ForEach(BesideHealthMetric.allCases.filter { $0.group == group }) { metric in
-                        Button { editing = metric } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(metric.title).foregroundStyle(.primary)
-                                    Text(presentation.isEdited(metric) ? "Demo override" : presentation.reading(metric) == nil ? "No shared reading" : "Health / iPhone").font(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Text(metric.text(presentation.reading(metric))).foregroundStyle(.secondary)
-                                if presentation.isDemoMode { Image(systemName: "pencil").font(.caption) }
-                            }
-                        }.buttonStyle(.plain).disabled(!presentation.isDemoMode)
+                    Section(group) {
+                        ForEach(BesideHealthMetric.allCases.filter { $0.group == group && presentation.reading($0) != nil }) { metric in row(metric) }
+                        DisclosureGroup("Not recorded for this day") {
+                            ForEach(BesideHealthMetric.allCases.filter { $0.group == group && presentation.reading($0) == nil }) { metric in row(metric) }
+                        }
                     }
-
-                } header: { Text(group) } footer: {
-                    if group == "Nutrition" { Text("Only what was logged in Apple Health. Missing entries don't mean meals were skipped. These values are not scored.") }
-                    if group == "Mind" { Text("Your existing Health entries and assessments, shown as context only. These do not change the bar or trigger automatic requests.") }
                 }
-                }
-                if presentation.isDemoMode { Section { Button("Reset this day's demo readings", role: .destructive) { confirmReset = true } } }
-
                 Section {
                     Button {
                         connecting = true
                         Task { await presentation.connectHealth(); connecting = false }
-                    } label: { HStack { Text("Connect / update Apple Health"); Spacer(); if connecting { ProgressView() } } }.disabled(connecting)
-                    Button("Refresh shared data") { Task { await presentation.refresh() } }.disabled(presentation.isRefreshing)
-                    if let status = presentation.healthStatus { Text(status).font(.footnote).foregroundStyle(.secondary) }
-                    if let date = presentation.healthReadAt { LabeledContent("Last read", value: date.formatted(date: .omitted, time: .shortened)) }
-                } header: { Text("Data connection") } footer: { Text("Health shares only the types you allow. Missing readings remain unknown. Heart and sleep measurements may require a Watch or another source that writes to Health.") }
-                Section {
-                    LabeledContent("Signals evaluated for", value: presentation.signalDay.start().formatted(date: .abbreviated, time: .omitted))
-                    if let signal = presentation.healthSignal {
-                        LabeledContent("Personal baseline", value: presentation.signalHasBaseline ? "Available" : "Still learning")
-                        LabeledContent("Drift days this week", value: "\(signal.driftDaysInLastWeek)")
-                        ForEach(ScoreKind.allCases.filter { signal.result.scores[$0] != nil }) { kind in
-                            LabeledContent(kind.title, value: "\(Int((signal.result.scores[kind] ?? 0).rounded())) / 100")
-                        }
-                    } else { Text("Not enough shared history yet.").foregroundStyle(.secondary) }
-                    if let contact = presentation.callCue { Label("A call from \(contact) is suggested", systemImage: "phone.fill") }
-                } header: { Text("What drives the bar") } footer: { Text("The backend compares sleep, rhythm, movement, daylight and body signals with your own history. Live today uses the last complete day to avoid comparing partial steps with a full day. The demo evaluates the selected day. This is a prototype change indicator, not a depression diagnosis. Contact suggestions also depend on the support agreements in the backend.") }
-                Section {
-                    LabeledContent("For", value: presentation.day.start().formatted(date: .abbreviated, time: .omitted))
-                    LabeledContent("Routine categories logged", value: "\(presentation.routineFeedback.categoryCount) / 6")
-                    LabeledContent("Routine display adjustment", value: "\(presentation.routineFeedback.categoryCount == 0 ? "" : "−")\((presentation.routineFeedback.adjustment * 100).formatted(.number.precision(.fractionLength(0...1)))) percentage points")
-                    Text("Each logged routine category moves the marker slightly towards green, up to 9 percentage points. Undo removes its contribution. This visual feedback leaves Health scores and support suggestions unchanged.").font(.footnote).foregroundStyle(.secondary)
-                } header: { Text("Routine feedback") }
-                Section {
-                    DisclosureGroup("Automatic support demo") {
-                        NavigationLink("Support choices and agreement") {
-                            ScrollView { EverydaySupportSetupFields().padding(20) }.background(EverydayStyle.paper).navigationTitle("Support choices").navigationBarTitleDisplayMode(.inline)
-                        }
-                        Picker("Request", selection: $automaticTopic) { ForEach(SupportTopic.allCases) { Text($0.title).tag($0) } }
-                        if presentation.isDemoMode {
-                            Button("Simulate an automatic request") {
-                                if let request = presentation.backend.planner.demonstrateAutomaticSupport(automaticTopic) { automaticResult = "Simulated request recorded for \(request.contactName). Nothing was delivered." }
-                                else { automaticResult = "Check the selected support choice and recipient agreement. Existing frequency limits and cancellations still apply." }
-                            }
-                        } else { Button("Open today's demo copy") { presentation.selectDay(Day(Date())) } }
-                        if let automaticResult { Text(automaticResult).font(.footnote).foregroundStyle(.secondary) }
-                        Button("View prototype requests") { showRequests = true }
-                        Text("Separate from the first, user-led reach-out suggestion. This control advances the automatic-message scene in the demo copy only.").font(.footnote).foregroundStyle(.secondary)
-                    }
-                }
-
-            }.navigationTitle("Demo controls").navigationBarTitleDisplayMode(.inline)
+                    } label: { HStack { Text("Review Health access"); Spacer(); if connecting { ProgressView() } } }.disabled(connecting)
+                    Button("Refresh readings") { Task { await presentation.refresh() } }.disabled(presentation.isRefreshing)
+                    if let status = presentation.healthStatus { Text(status).font(.caption).foregroundStyle(.secondary) }
+                    Text("To change an earlier denial: Health → profile → Apps → Mind.").font(.caption).foregroundStyle(.secondary)
+                } header: { Text("Health connection") } footer: { Text("Nutrition and Mind entries are context only. Missing logs do not mean a skipped meal or low mood.") }
+            }.navigationTitle("Health readings").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-                .sheet(isPresented: $showRequests) { BesideSupportRequestsView() }
                 .sheet(item: $editing) { metric in BesideMetricEditorView(metric: metric, day: presentation.day) }
-                .confirmationDialog("Restore the original readings for this day?", isPresented: $confirmReset, titleVisibility: .visible) {
-                    Button("Reset demo readings", role: .destructive) { presentation.resetEdits(on: presentation.day) }
-                }
         }
+    }
+    private func row(_ metric: BesideHealthMetric) -> some View {
+        Button { editing = metric } label: {
+            HStack {
+                Text(metric.title).foregroundStyle(.primary)
+                Spacer()
+                Text(metric.text(presentation.reading(metric))).foregroundStyle(.secondary)
+                if presentation.isDemoMode { Image(systemName: "pencil").font(.caption) }
+            }.padding(.vertical, 4)
+        }.buttonStyle(.plain).disabled(!presentation.isDemoMode)
     }
 }
 

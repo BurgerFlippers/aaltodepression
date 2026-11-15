@@ -20,10 +20,11 @@ struct BesideSidequestView: View {
                     Button { showReason = true } label: { Image(systemName: "info.circle").frame(width: 44, height: 44) }
                         .accessibilityLabel("Why these challenges?")
                     if offer.selected != nil, offer.completedAt == nil {
-                        Menu {
-                            Button("Choose another challenge") { presentation.backend.planner.changeSidequest(on: day) }
-                        } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
-                            .accessibilityLabel("Challenge options")
+                        Button {
+                            presentation.backend.planner.changeSidequest(on: day)
+                        } label: { Image(systemName: "arrow.uturn.backward").frame(width: 44, height: 44) }
+                            .accessibilityLabel("Choose another challenge")
+                            .accessibilityIdentifier("challenge-back")
                     }
                 }
                 if let quest = offer.selected {

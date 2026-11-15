@@ -50,6 +50,7 @@ for n in [49, 50, 55] {
 
 failures += reachOutChecks()
 failures += sidequestChecks()
+failures += demoScenarioChecks()
 failures += plannerChecks(table: table, history: days)
 failures += backendChecks(table: table)
 failures += screenTimeChecks(table: table)

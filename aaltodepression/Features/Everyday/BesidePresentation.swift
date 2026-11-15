@@ -15,6 +15,8 @@ final class BesidePresentation {
     private(set) var healthHistory: [StepDay] = []
     private(set) var healthStatus: String?
     private(set) var healthReadAt: Date?
+    private(set) var demoLoad: Double?
+    private(set) var demoRecipientID: String?
     private var demoEdits: [Int: [String: Double]] = [:]
     let profileStore: EverydayStore
     private(set) var isRefreshing = false
@@ -225,6 +227,7 @@ final class BesidePresentation {
         #if DEBUG
         print("Mind Trends day: \(day); availableTypes=\(table.numbers.values.filter { $0[day] != nil }.count)")
         #endif
+        if selectedDay != day { demoLoad = nil; demoRecipientID = nil }
         selectedDay = day
         backend = sandbox!
         refreshSandbox()
@@ -232,6 +235,8 @@ final class BesidePresentation {
 
     func returnToLive() {
         selectedDay = nil
+        demoLoad = nil
+        demoRecipientID = nil
         backend = liveBackend
         healthHistory = StepEngine.run(table: planningTable(table), through: Day(Date()), homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
         liveBackend.planner.prepareSidequests(signal: healthSignal)
@@ -249,7 +254,7 @@ final class BesidePresentation {
     }
     private var displayedTable: FeatureTable {
         guard isDemoMode else { return table }
-        var result = table
+        var result = demoLoad.map { DemoScenarioRules.table(ending: day, load: $0, source: table) } ?? table
         for (jdn, edits) in demoEdits {
             for (key, value) in edits { result.set(key, Day(jdn: jdn), value) }
         }
@@ -263,9 +268,70 @@ final class BesidePresentation {
         refreshSandbox(replaceSidequests: true)
     }
     func resetEdits(on day: Day) { demoEdits.removeValue(forKey: day.jdn); refreshSandbox(replaceSidequests: true) }
-    var hasDemoEdits: Bool { isDemoMode && !demoEdits.isEmpty }
+    var hasDemoEdits: Bool { isDemoMode && (demoLoad != nil || !demoEdits.isEmpty) }
+    func applyDemoLoad(_ load: Double) {
+        guard isDemoMode, load.isFinite else { return }
+        if demoLoad == nil {
+            let demo = Backend(planner: Planner(store: .memory, setup: liveBackend.planner.setup, isDemo: true))
+            sandbox = demo
+            backend = demo
+        }
+        demoLoad = min(1, max(0, load))
+        refreshSandbox(replaceSidequests: true)
+    }
+
+    func resetDemoScenario() {
+        guard let selectedDay else { return }
+        demoLoad = nil
+        demoRecipientID = nil
+        demoEdits.removeAll()
+        selectDay(selectedDay, refreshSnapshot: true)
+    }
+
+    /// The selected test recipient is agreed only inside the in-memory demo copy.
+    func setDemoRecipient(_ id: String?) {
+        guard isDemoMode else { return }
+        demoRecipientID = id
+        refreshSandbox()
+    }
+
+    @discardableResult func prepareDemoSMS() -> OutgoingMessage? {
+        guard isDemoMode, demoLoad != nil, demoRecipientID != nil else { return nil }
+        return backend.planner.prepareDemoSMS()
+    }
+
+    var balanceTitle: String {
+        guard healthSignal?.result.steadiness != nil else { return "Learning your usual" }
+        switch healthSignal?.step {
+        case .reachOut: return "Time to reach out"
+        case .nudge: return "A little support could help"
+        default: return "Your daily balance"
+        }
+    }
+
+    func categoryScore(_ category: SidequestCategory) -> Double? {
+        guard signalHasBaseline else { return nil }
+        switch category {
+        case .sleep: return healthSignal?.result.scores[.sleep]
+        case .movement: return healthSignal?.result.scores[.movement]
+        default: return nil
+        }
+    }
+
     private func refreshSandbox(replaceSidequests: Bool = false) {
         guard let selectedDay, let sandbox else { return }
+        if demoLoad != nil {
+            var setup = sandbox.planner.setup
+            setup.helpConsent = .askEachTime
+            setup.clinicPhone = ""
+            setup.contacts = liveBackend.planner.setup.contacts.filter { $0.id == demoRecipientID }.map { contact in
+                var contact = contact
+                contact.agreed = true
+                contact.canHelpWith = [.call]
+                return contact
+            }
+            if setup != sandbox.planner.setup { sandbox.planner.updateSetup(setup) }
+        }
         let inputs = planningTable(displayedTable.truncated(through: selectedDay))
         healthHistory = StepEngine.run(table: inputs, through: selectedDay, homeTimeZone: TimeZone.current.identifier, locationEnabled: false)
         sandbox.refresh(day: selectedDay, minutes: 18 * 60, table: inputs, history: healthHistory, locationEnabled: false)

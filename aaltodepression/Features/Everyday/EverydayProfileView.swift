@@ -2,17 +2,11 @@ import SwiftUI
 
 struct EverydayProfileView: View {
     @Environment(EverydayStore.self) private var store
-    @State private var showCheckIn = false
-    @State private var showMessages = false
     private var name: String { store.state.profile.name.trimmingCharacters(in: .whitespacesAndNewlines) }
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    section("A moment for you") {
-                        Button("Check in", systemImage: "heart.text.clipboard") { showCheckIn = true }.buttonStyle(.bordered)
-                        Button("Reach out", systemImage: "message") { showMessages = true }.buttonStyle(.bordered)
-                    }
                     section("Your name") { EverydayProfileFields() }
                     section("Daily rhythm") { EverydayRoutineFields() }
                     section("Your people") {
@@ -28,8 +22,6 @@ struct EverydayProfileView: View {
                         Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) }
                     }
                 }
-                .sheet(isPresented: $showCheckIn) { BesideCheckInView() }
-                .sheet(isPresented: $showMessages) { EverydaySocialView() }
         }
     }
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
