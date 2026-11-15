@@ -17,7 +17,7 @@ struct EverydayTodayView: View {
                 .onChange(of: presentation.sidequestFocus) { _, _ in proxy.scrollTo("daily-sidequest", anchor: .top) }
             }
             .background(EverydayStyle.paper)
-            .navigationTitle("Mind").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Routine")
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Support", systemImage: "person.2") { showHelp = true } } }
             .onChange(of: presentation.messageFocus, initial: true) { _, value in
                 if value > lastMessageRoute { lastMessageRoute = value; showMessages = true }

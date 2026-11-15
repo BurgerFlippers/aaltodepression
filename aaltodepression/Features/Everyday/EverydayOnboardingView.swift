@@ -66,7 +66,7 @@ struct EverydayProfileFields: View {
             Text("First name")
             TextField("Your name", text: $store.state.profile.name)
                 .multilineTextAlignment(.trailing).textContentType(.givenName)
-        }.padding(16).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
+        }.padding(16).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 
@@ -79,7 +79,7 @@ struct EverydayRoutineFields: View {
             timeRow(.wake)
             Divider().padding(.leading, 16)
             timeRow(.bed)
-        }.background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
+        }.background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .sheet(item: $timeField) { field in
             NavigationStack {
                 DatePicker(field.title, selection: timeBinding(field), displayedComponents: .hourAndMinute)
@@ -136,6 +136,6 @@ struct EverydaySensorSettings: View {
             Text("Share sleep, movement, daylight and heart measurements to compare daily changes with your own history. You choose what to share in Apple's permission sheet.").font(.footnote).foregroundStyle(.secondary)
             if let status = presentation.healthStatus { Text(status).font(.footnote).foregroundStyle(.secondary) }
             if let status = store.sensorStatus { Text(status).font(.footnote).foregroundStyle(EverydayStyle.muted) }
-        }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
+        }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }

@@ -80,9 +80,8 @@ private struct MindChallengeTile: View {
         }
         .padding(.horizontal, 24).padding(.vertical, 18)
         .frame(maxWidth: .infinity, minHeight: 150)
-        .background(BesideQuestStyle.cardColor(index), in: RoundedRectangle(cornerRadius: 22))
-        .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(EverydayStyle.accent.opacity(0.12), lineWidth: 1) }
-        .contentShape(RoundedRectangle(cornerRadius: 22))
+        .background(BesideQuestStyle.cardColor(index), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 }
 

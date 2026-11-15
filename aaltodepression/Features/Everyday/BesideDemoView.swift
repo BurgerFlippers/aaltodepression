@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 /// Balance first; readings and judging controls remain one deliberate tap away.
 struct BesideDemoView: View {
@@ -47,7 +48,7 @@ struct BesideDemoView: View {
                                 }.padding(.horizontal, 16).padding(.vertical, 4)
                                 if area != TrendArea.allCases.last { Divider().padding(.leading, 58) }
                             }
-                        }.background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20))
+                        }.background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     }
                     DisclosureGroup("Your chosen challenge") {
                         if let recorded, let quest = recorded.selected {
@@ -55,10 +56,10 @@ struct BesideDemoView: View {
                             Text("Selected · no completion tap needed").font(.caption).foregroundStyle(.secondary)
                             Text(presentation.sidequestEvidence(on: presentation.day)).font(.caption).foregroundStyle(.secondary)
                         } else { Text("No challenge selected for this day.").font(.subheadline).foregroundStyle(.secondary).padding(.top, 8) }
-                    }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20))
+                    }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     Button { showReadings = true } label: {
                         HStack { Label("Health readings", systemImage: "heart.text.square"); Spacer(); Image(systemName: "chevron.right").font(.caption) }
-                            .padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
+                            .padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }.buttonStyle(.plain).accessibilityIdentifier("trends-health-readings")
                     Text(presentation.selectedDayAvailability).font(.caption).foregroundStyle(.secondary)
                 }.padding(20)
@@ -106,18 +107,19 @@ struct BesideTrendBalanceView: View {
             }
             Text(presentation.balanceTitle).font(.title3.weight(.semibold))
             GeometryReader { geometry in
-                Capsule().fill(LinearGradient(colors: [.init(red: 0.77, green: 0.91, blue: 0.68), .init(red: 0.95, green: 0.83, blue: 0.36), .init(red: 0.91, green: 0.41, blue: 0.23), .init(red: 0.49, green: 0.06, blue: 0.13)], startPoint: .leading, endPoint: .trailing)).frame(height: 8).frame(height: 18)
+                BalanceScale().frame(height: 18)
                 if let score = presentation.healthSignal?.result.steadiness {
                     Circle().fill(.white).overlay { Circle().strokeBorder(.black, lineWidth: 3) }.frame(width: 18, height: 18)
                         .offset(x: (geometry.size.width - 18) * min(1, max(0, 1 - score / 100)))
                 }
             }.frame(height: 18).accessibilityHidden(true)
             HStack { Text("Your usual"); Spacer(); Text("More support") }.font(.caption).foregroundStyle(.secondary)
+            BesideBalanceTrend()
             if presentation.hasDemoEdits {
                 Label("Demo values · Health is unchanged", systemImage: "testtube.2").font(.caption).foregroundStyle(EverydayStyle.accent)
             } else { Text("Compared with your own daily rhythm").font(.caption).foregroundStyle(.secondary) }
         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 22))
+            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             .accessibilityElement(children: .combine)
     }
 }
@@ -167,6 +169,57 @@ private enum TrendArea: CaseIterable, Identifiable {
         case .body: "Resting heart rate is the most reliable here. Heart rate variability is noisy on a watch."
         case .mind: "What you log in the Health app. Not scored; it helps check the other signals."
         case .food: "Only if you log food. Not scored. A missing log does not mean a skipped meal."
+        }
+    }
+}
+
+/// The last four weeks: one bar per day and a 7-day running average.
+/// Support follows sustained change, so the trend matters more than any single day.
+struct BesideBalanceTrend: View {
+    @Environment(BesidePresentation.self) private var presentation
+    private struct Point: Identifiable { let date: Date; let value: Double; let average: Double?; var id: Date { date } }
+    private var points: [Point] {
+        let end = presentation.signalDay
+        let days = presentation.healthHistory.filter { $0.day <= end && $0.day > end - 28 && $0.result.steadiness != nil }
+            .sorted { $0.day < $1.day }
+        return days.map { day in
+            let week = presentation.healthHistory.filter { $0.day <= day.day && $0.day > day.day - 7 }.compactMap(\.result.steadiness)
+            return Point(date: day.day.start(), value: day.result.steadiness!, average: week.count >= 4 ? week.reduce(0, +) / Double(week.count) : nil)
+        }
+    }
+    var body: some View {
+        let points = points
+        if points.count >= 7 {
+            VStack(alignment: .leading, spacing: 8) {
+                Divider().padding(.vertical, 4)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Last 4 weeks").font(.subheadline.weight(.semibold))
+                    Spacer()
+                    if let average = points.last?.average {
+                        Text("7-day average \(Int(average.rounded()))").font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
+                    }
+                }
+                Chart {
+                    ForEach(points) { point in
+                        BarMark(x: .value("Day", point.date, unit: .day), y: .value("Balance", point.value), width: .ratio(0.6))
+                            .foregroundStyle(BalanceScale.color(for: point.value).opacity(0.55))
+                            .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+                    }
+                    ForEach(points.filter { $0.average != nil }) { point in
+                        LineMark(x: .value("Day", point.date, unit: .day), y: .value("7-day average", point.average!))
+                            .foregroundStyle(.primary).lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                            .interpolationMethod(.monotone)
+                    }
+                }
+                .chartYScale(domain: 0...100)
+                .chartYAxis { AxisMarks(values: [0, 50, 100]) { AxisGridLine(); AxisValueLabel() } }
+                .chartXAxis { AxisMarks(values: .stride(by: .day, count: 7)) { AxisValueLabel(format: .dateTime.day().month(.abbreviated)) } }
+                .frame(height: 120)
+                if let week = presentation.healthSignal?.driftDaysInLastWeek {
+                    Text(week == 0 ? "Every day this week was near your usual." : "\(week) of the last 7 days were further from your usual.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
         }
     }
 }

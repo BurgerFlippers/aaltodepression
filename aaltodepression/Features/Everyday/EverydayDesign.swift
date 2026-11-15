@@ -25,7 +25,7 @@ struct EverydayPrimaryButton: ButtonStyle {
         configuration.label.font(.body.weight(.semibold))
             .frame(maxWidth: .infinity, minHeight: 54)
             .foregroundStyle(.white)
-            .background(EverydayStyle.action, in: RoundedRectangle(cornerRadius: 14))
+            .background(EverydayStyle.action, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
     }
 }
@@ -56,6 +56,21 @@ struct EverydayNotice: View {
     var body: some View {
         Text(text).font(.footnote).foregroundStyle(EverydayStyle.muted)
             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-            .background(EverydayStyle.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: 18))
+            .background(EverydayStyle.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+/// Flat four-step scale from "your usual" to "more support". No gradients: each step is one solid colour.
+struct BalanceScale: View {
+    static let colors: [Color] = [
+        Color(red: 0.55, green: 0.80, blue: 0.50), Color(red: 0.93, green: 0.78, blue: 0.30),
+        Color(red: 0.90, green: 0.45, blue: 0.25), Color(red: 0.70, green: 0.16, blue: 0.22)
+    ]
+    /// Colour for a 0...100 balance value, matching the scale.
+    static func color(for value: Double) -> Color {
+        value >= 80 ? colors[0] : value >= 60 ? colors[1] : value >= 40 ? colors[2] : colors[3]
+    }
+    var body: some View {
+        HStack(spacing: 3) { ForEach(0..<4, id: \.self) { Capsule().fill(Self.colors[$0]) } }.frame(height: 8)
     }
 }

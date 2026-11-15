@@ -27,7 +27,7 @@ struct BesideForYouView: View {
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(.secondary)
             }.padding(22).frame(maxWidth: .infinity, minHeight: 128, alignment: .leading)
-                .background(color, in: RoundedRectangle(cornerRadius: 22))
+                .background(color, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         }.buttonStyle(.plain).accessibilityIdentifier(title == "Check in" ? "for-you-check-in" : "for-you-reach-out")
     }
 }
