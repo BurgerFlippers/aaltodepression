@@ -11,7 +11,7 @@ struct EverydayProfileView: View {
                     section("Daily rhythm") { EverydayRoutineFields() }
                     section("Your people") {
                         EverydayContactsEditor().padding(18)
-                            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                     }
                 }.padding(20)
             }.scrollDismissesKeyboard(.interactively).background(EverydayStyle.paper)
@@ -63,7 +63,7 @@ struct EverydayHelpView: View {
                     if store.state.people.isEmpty {
                         NavigationLink { EverydayNetworkView() } label: {
                             Label("Add someone you trust", systemImage: "person.crop.circle.badge.plus")
-                                .frame(maxWidth: .infinity, minHeight: 64).background(EverydayStyle.mint, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                .frame(maxWidth: .infinity, minHeight: 64).background(EverydayStyle.mint, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                         }
                     } else {
                         ForEach(store.state.people.sorted { $0.role == .close && $1.role != .close }) { person in
@@ -80,7 +80,7 @@ struct EverydayHelpView: View {
                                     Spacer()
                                     Image(systemName: "phone.fill").font(.title2).padding(12).background(EverydayStyle.surface.opacity(0.7), in: Circle())
                                 }.padding(20).frame(maxWidth: .infinity, minHeight: 104)
-                                    .background(person.role == .close ? EverydayStyle.mint : EverydayStyle.lavender, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                                    .background(person.role == .close ? EverydayStyle.mint : EverydayStyle.lavender, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                             }.buttonStyle(.plain).accessibilityLabel("Call \(person.name), \(person.role.title)")
                         }
                     }
@@ -98,7 +98,7 @@ struct EverydayHelpView: View {
                                     Text("Confidential phone support, 24/7").font(.caption).foregroundStyle(.secondary)
                                 }
                                 Spacer()
-                            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                         }.buttonStyle(.plain).accessibilityIdentifier("mieli-call")
                         Link("About the helpline", destination: URL(string: "https://mieli.fi/tukea-ja-apua/kriisipuhelin?oai_link_source=model_response_hotline")!).font(.footnote)
                     }

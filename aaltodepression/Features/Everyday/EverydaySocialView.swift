@@ -59,7 +59,7 @@ struct EverydaySocialView: View {
                             Text("A little company for this?").font(.title2.bold())
                             Text((smallerQuest ? sidequest.smaller : sidequest.regular).title).font(.body)
                         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-                            .background(BesideQuestStyle.color(sidequest.category), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                            .background(BesideQuestStyle.color(sidequest.category), in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                     } else {
                         Text(prompt?.title ?? "Who would you like to hear from?").font(.title2.bold())
                         if let prompt { Text(prompt.explanation).font(.subheadline).foregroundStyle(.secondary) }
@@ -81,7 +81,7 @@ struct EverydaySocialView: View {
                                         Spacer()
                                         Image(systemName: person.id == personID ? "checkmark.circle.fill" : "circle").font(.title2)
                                     }.padding(18).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-                                        .background(person.id == personID ? EverydayStyle.mint : EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                        .background(person.id == personID ? EverydayStyle.mint : EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                                 }.buttonStyle(.plain).accessibilityValue(person.id == personID ? "Selected" : "")
                             }
                             if contacts.count > 3 {
@@ -95,7 +95,7 @@ struct EverydaySocialView: View {
                     if selected != nil {
                         if inviting || testMessage != nil {
                             Text(draft).font(.body).padding(18).frame(maxWidth: .infinity, alignment: .leading)
-                                .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                             Button(testMessage == nil ? "Review invite to \(selected?.name ?? "friend")" : "Review test to \(selected?.name ?? "Konsta")") { review(draft) }
                                 .buttonStyle(EverydayPrimaryButton())
                             Text("You review and send it in Messages.").font(.footnote).foregroundStyle(.secondary)
@@ -123,7 +123,7 @@ struct EverydaySocialView: View {
                                 Button("Review message") { review(draft) }.buttonStyle(.borderedProminent).tint(EverydayStyle.action).foregroundStyle(.white)
                                     .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             }.padding(.top, 14)
-                        }.font(.headline).padding(18).background(EverydayStyle.peach, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        }.font(.headline).padding(18).background(EverydayStyle.peach, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                     }
                 }.padding(20)
             }.background(EverydayStyle.paper)

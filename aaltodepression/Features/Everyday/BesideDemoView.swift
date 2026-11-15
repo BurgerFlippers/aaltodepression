@@ -48,7 +48,7 @@ struct BesideDemoView: View {
                                 }.padding(.horizontal, 16).padding(.vertical, 4)
                                 if area != TrendArea.allCases.last { Divider().padding(.leading, 58) }
                             }
-                        }.background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        }.background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                     }
                     DisclosureGroup("Your chosen challenge") {
                         if let recorded, let quest = recorded.selected {
@@ -56,10 +56,10 @@ struct BesideDemoView: View {
                             Text("Selected · no completion tap needed").font(.caption).foregroundStyle(.secondary)
                             Text(presentation.sidequestEvidence(on: presentation.day)).font(.caption).foregroundStyle(.secondary)
                         } else { Text("No challenge selected for this day.").font(.subheadline).foregroundStyle(.secondary).padding(.top, 8) }
-                    }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                     Button { showReadings = true } label: {
                         HStack { Label("Health readings", systemImage: "heart.text.square"); Spacer(); Image(systemName: "chevron.right").font(.caption) }
-                            .padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
                     }.buttonStyle(.plain).accessibilityIdentifier("trends-health-readings")
                     Text(presentation.selectedDayAvailability).font(.caption).foregroundStyle(.secondary)
                 }.padding(20)
@@ -119,7 +119,7 @@ struct BesideTrendBalanceView: View {
                 Label("Demo values · Health is unchanged", systemImage: "testtube.2").font(.caption).foregroundStyle(EverydayStyle.accent)
             } else { Text("Compared with your own daily rhythm").font(.caption).foregroundStyle(.secondary) }
         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
             .accessibilityElement(children: .combine)
     }
 }

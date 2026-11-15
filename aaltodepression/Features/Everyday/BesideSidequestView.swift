@@ -80,8 +80,8 @@ private struct MindChallengeTile: View {
         }
         .padding(.horizontal, 24).padding(.vertical, 18)
         .frame(maxWidth: .infinity, minHeight: 150)
-        .background(BesideQuestStyle.cardColor(index), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(BesideQuestStyle.cardColor(index), in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
     }
 }
 
@@ -125,7 +125,7 @@ nonisolated enum BesideQuestStyle {
     }
 
     static func cardColor(_ index: Int) -> Color {
-        [Color(red: 0.20, green: 0.15, blue: 0.28), Color(red: 0.24, green: 0.17, blue: 0.32), Color(red: 0.28, green: 0.19, blue: 0.36)][abs(index % 3)]
+        Color(red: 0.22, green: 0.17, blue: 0.31)
     }
 
     static func visual(_ quest: Sidequest) -> String {

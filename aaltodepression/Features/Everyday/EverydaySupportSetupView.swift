@@ -20,7 +20,7 @@ struct EverydaySupportSetupFields: View {
                     })).padding(16)
                     if topic != SupportTopic.allCases.last { Divider().padding(.horizontal, 16) }
                 }
-            }.tint(EverydayStyle.ink).background(EverydayStyle.mint, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            }.tint(EverydayStyle.ink).background(EverydayStyle.mint, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
             VStack(alignment: .leading, spacing: 12) {
                 Text("Who could help?").font(.headline)
                 if contacts.isEmpty { Text("Add someone in Your people first.").foregroundStyle(.secondary) }
@@ -30,7 +30,7 @@ struct EverydaySupportSetupFields: View {
                         ForEach(contacts) { Text($0.name).tag($0.id) }
                     }.pickerStyle(.menu)
                 }
-            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
             DisclosureGroup("Automatic support (optional demo)", isExpanded: $automaticDetails) {
                 VStack(alignment: .leading, spacing: 14) {
                     Text("A separate demo shows an agreed practical request being recorded for your person. It never delivers a real message.").font(.subheadline).foregroundStyle(.secondary)
@@ -40,7 +40,7 @@ struct EverydaySupportSetupFields: View {
                         Text("Only the practical request is included. Your Health readings and check-in answers are not shared.").font(.footnote).foregroundStyle(.secondary)
                     }
                 }.padding(.top, 14)
-            }.padding(18).background(EverydayStyle.lavender, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            }.padding(18).background(EverydayStyle.lavender, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
             Button("Save choices") {
                 presentation.saveSupportPreferences(preferences, contactAgreed: agreement)
                 saved = true

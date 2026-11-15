@@ -95,7 +95,7 @@ struct BesideWinsView: View {
             }
             Spacer(minLength: 0)
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
-            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
             .animation(reduceMotion ? nil : .spring(duration: 0.4), value: presentation.winCount)
             .sensoryFeedback(.success, trigger: feedback)
             .onChange(of: presentation.winCount) { old, new in if new > old { feedback.toggle() } }

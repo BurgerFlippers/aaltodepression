@@ -6,6 +6,7 @@ nonisolated enum EverydayStyle {
     static let paper = Color(uiColor: .systemBackground)
     static let surface = Color(uiColor: .secondarySystemGroupedBackground)
     static let surfaceRaised = Color(uiColor: .tertiarySystemGroupedBackground)
+    static let cardRadius: CGFloat = 32
     static let accent = Color(red: 0.76, green: 0.65, blue: 0.97)
     static let action = Color(red: 0.44, green: 0.28, blue: 0.70)
     static let orange = accent
@@ -46,7 +47,7 @@ struct EverydayHeading: View {
 struct BesideLogoView: View {
     var body: some View {
         Image("BesideMark").resizable().scaledToFit().saturation(0).colorMultiply(EverydayStyle.accent)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
             .accessibilityHidden(true)
     }
 }
@@ -56,7 +57,7 @@ struct EverydayNotice: View {
     var body: some View {
         Text(text).font(.footnote).foregroundStyle(EverydayStyle.muted)
             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-            .background(EverydayStyle.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(EverydayStyle.surface.opacity(0.7), in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
     }
 }
 
