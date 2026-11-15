@@ -1,7 +1,7 @@
 import SwiftUI
 import Charts
 
-/// Balance first. A simple demo (demo data with scenarios, SMS demo) sits at the top; the advanced
+/// Trends. A simple demo (demo data with scenarios, SMS demo) sits at the top, then balance and signals; the advanced
 /// demo controls open from a triple tap on the Trends title.
 struct BesideDemoView: View {
     @Environment(BesidePresentation.self) private var presentation

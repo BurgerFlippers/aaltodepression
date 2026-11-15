@@ -37,7 +37,7 @@ final class BesidePresentation {
     private(set) var healthConnected: Bool = UserDefaults.standard.bool(forKey: "beside.health.connected") {
         didSet { defaults.set(healthConnected, forKey: "beside.health.connected") }
     }
-    /// Visits recorded on this iPhone from install onward. Nothing about location leaves the phone.
+    /// Visits recorded on this iPhone while Location is on. Nothing about location leaves the phone.
     private let location = LocationSource()
     private(set) var locationEnabled: Bool = UserDefaults.standard.bool(forKey: "mind.location.enabled") {
         didSet { defaults.set(locationEnabled, forKey: "mind.location.enabled") }

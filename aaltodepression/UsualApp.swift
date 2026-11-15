@@ -13,7 +13,7 @@ struct BesideApp: App {
     }
 }
 
-/// Shows the step-1 notification as a banner even while the app is open (the demo needs it on stage).
+/// Shows notifications as banners even while the app is open (the demo needs them on stage).
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
@@ -25,7 +25,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         [.banner, .sound]
     }
 
-    /// The 12:00 reminder opens the message to the friend.
+    /// Passes planner actions to the notification inbox; the legacy "compose" flag opens the message to the friend.
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         if let action = await PlannerNotifications.action(for: response) {
             let date = response.notification.date

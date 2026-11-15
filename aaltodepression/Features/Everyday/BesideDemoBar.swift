@@ -48,7 +48,7 @@ struct BesideDemoBar: View {
     }
 }
 
-/// The compact day selector is only used inside the Demo tab.
+/// Compact day selector. Currently unused; Trends has its own toolbar day buttons.
 struct BesideDayPicker: View {
     @Environment(BesidePresentation.self) private var presentation
     var body: some View {

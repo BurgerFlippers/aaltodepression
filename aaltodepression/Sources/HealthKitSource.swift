@@ -50,7 +50,7 @@ nonisolated struct HealthKitSource: Sendable {
             types.insert(HKScoredAssessmentType(.GAD7))
         }
         // Medication dose events are not allowed in this request (HealthKit throws). Medications
-        // use their own per-medication permission, asked from Settings with requestMedicationAccess().
+        // use their own per-medication permission, asked separately with requestMedicationAccess().
         return types
     }
 
@@ -72,7 +72,7 @@ nonisolated struct HealthKitSource: Sendable {
     /// Types HealthKit refuses in a plain read request on some systems.
     static let disallowed: Set<String> = ["HKMedicationDoseEventTypeIdentifierMedicationDoseEvent"]
 
-    /// Medications have their own sheet, one medication at a time. Shown from a tap in Settings.
+    /// Medications have their own sheet, one medication at a time. Shown only after a tap.
     func requestMedicationAccess() async {
         if #available(iOS 26.0, *) {
             try? await store.requestPerObjectReadAuthorization(for: HKObjectType.userAnnotatedMedicationType(), predicate: nil)

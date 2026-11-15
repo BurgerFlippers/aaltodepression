@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Persists attempts before leaving Mind, so a missing callback cannot cause repeated sends.
+/// Persists attempts before leaving MindMaintainer, so a missing callback cannot cause repeated sends.
 @MainActor @Observable final class DemoShortcutSender {
     private(set) var run: DemoShortcutRun?
     private let defaults: UserDefaults

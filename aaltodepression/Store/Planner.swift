@@ -4,8 +4,8 @@ import Observation
 /// The planner service the screens talk to. Holds the state, rebuilds today's plan after every
 /// change and saves. All rules live in Engine/Planner; this class only wires them to the app.
 ///
-/// Wiring (integrator): create one `Planner` in AppModel, call `refresh(...)` whenever the feature
-/// table or history changes and when the app becomes active, and route notification responses to
+/// Wiring: `Backend` owns one `Planner` and calls `refresh(...)` whenever the feature table or
+/// history changes and when the app becomes active; notification responses are routed to
 /// `handle(_:deliveredAt:)`. Screens read `today`, `messagesToday`, `openMessages`, `safety`, `rug`
 /// and call the action methods.
 @MainActor @Observable
@@ -39,7 +39,7 @@ final class Planner {
         self.state = store.load() ?? PlannerState(setup: setup ?? PlannerSetup(personName: ""))
     }
 
-    /// A planner filled with Demo user's synthetic days, for the Demo tab and previews.
+    /// A planner filled with Demo user's synthetic days, for the Backend testing screens.
     /// The demo day opens on the check-in; `minutes` is the demo clock (17:30 by default).
     static func demo(day n: Int, minutes: Int = 17 * 60 + 30) -> Planner {
         let p = Planner(store: .memory, setup: DemoPlannerSource.setup, isDemo: true)

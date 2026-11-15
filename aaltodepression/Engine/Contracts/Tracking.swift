@@ -50,7 +50,7 @@ nonisolated struct SleepSummary: Sendable, Equatable {
     let efficiency: TrackedValue
     /// Spread of the sleep midpoint over the last 7 nights. Lower is steadier.
     let regularity: TrackedValue
-    /// Nights in a row (up to 3) clearly shorter than usual.
+    /// Nights of the last 3 clearly shorter than usual.
     let shortNights: Int
     /// Hours slept, last 28 nights.
     let trend: [TrendPoint]

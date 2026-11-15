@@ -26,7 +26,7 @@ nonisolated struct SupportPreferences: Codable, Sendable, Equatable {
 }
 
 nonisolated extension SupportPreferences {
-    // Older saved preferences have no `topicPeople`.
+    // Older saved preferences have no `topicPeople` or `pickedTopics`.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         personID = try c.decodeIfPresent(String.self, forKey: .personID) ?? ""

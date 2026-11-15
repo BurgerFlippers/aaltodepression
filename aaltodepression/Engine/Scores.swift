@@ -120,7 +120,7 @@ nonisolated struct Scorer: Sendable {
             let usualSD = Self.sd(table.values(key, from: w.from, to: w.to))
             let points: Double
             if let usualSD {
-                // As regular as usual (or more) is full; each extra usual-spread costs 60 points.
+                // Up to a quarter more spread than usual is full; each extra usual-spread costs 60 points.
                 let allowed = max(usualSD, 0.25) * 1.25
                 points = sd <= allowed ? 100 : max(0, 100 - (sd - allowed) / max(usualSD, 0.25) * 60)
             } else {

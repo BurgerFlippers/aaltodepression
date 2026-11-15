@@ -17,7 +17,7 @@ final class TrackingService {
 
 /// The one object the frontend needs. See docs/BACKEND_API.md.
 ///
-///     // AppModel (integrator), once:
+///     // BesidePresentation, once:
 ///     let backend = Backend()                      // or Backend.demo(day: 50)
 ///     // after reading Health data, and when the app becomes active:
 ///     backend.refresh(table: table, history: history, locationEnabled: location.isEnabled)

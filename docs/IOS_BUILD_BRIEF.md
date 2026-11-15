@@ -1,5 +1,29 @@
 # iOS build brief: TMS aftercare app (Junction 2026, Aalto "Beyond the Clinic")
 
+## Status (checked 15 November 2026)
+
+This is the original brief the project started from. It is kept for its reasoning, data inventory and engine rules. The app built from it is MindMaintainer. For what exists now, read [APP_DESIGN.md](APP_DESIGN.md), [DATA_SCOPE.md](DATA_SCOPE.md) and [HEALTHKIT_DATA.md](HEALTHKIT_DATA.md).
+
+Still true:
+
+- Baseline (section 5): median and MAD over the 28 days before the current window, at least 7 values (`Engine/Baseline.swift`).
+- Score scale and `closeness` / `atLeast` (section 6), the `likelyIll` and `travelling` flags, and missing data never counting as zero.
+- Step engine (section 7): drift is more than 15 points below the usual day score; step 1 at 5 drift days of 7, step 2 after 10 days at step 1, back to steady at 2 or fewer (`Engine/StepEngine.swift`).
+- Demo patient Perttu (section 9) in `Sources/DemoSource.swift`, used by `Tools/engine-check.sh` and the DevTools screens.
+
+Changed:
+
+- **Data:** reading "everything available" (section 4) was replaced by the much smaller agreed scope in DATA_SCOPE.md. The running app reads 120 days, not 365. Calendar, photos, SensorKit and most P1 types are not read. Location is collected only after the person turns it on.
+- **Scores:** weights are Sleep 0.30, Rhythm 0.25, Movement 0.20, Daylight 0.10, Places 0.10, Body 0.05. Sleep also uses a 3-night mean and sleep efficiency. Rhythm compares the 7-day spread of wake and bedtime with the person's own usual spread and adds the sleep midpoint. Movement adds active hours.
+- **UI:** there is no Data screen and no Plan screen, and `plan_perttu.json` is not shown. The person sees one daily task chosen from the scores, Trends with the day score and signals, For you and You (see APP_DESIGN.md).
+- **Step 1 and 2:** the app does not send a local notification at step 1. At step 2 no message goes out automatically: the friend message and nurse call were not built, and every message is sent by the person.
+- **Usage strings:** see `project.pbxproj`. The Health text now also covers nutrition and mind context. Calendar and Photos texts are still there but unused.
+- **Storage:** SwiftData is not used by the running app. Health readings are held in memory; profile and planner state are JSON files.
+
+The rest of this file is the original brief, unchanged.
+
+---
+
 Hand this file to Claude Code in an empty folder. You (the coding Claude) own the UX and the app name. Read section 1 to 3 for the why, section 4 for the data you must read, section 5 to 7 for the logic, section 8 for UX rules you must respect, then propose a name and a design direction in a few lines before you write UI code.
 
 ## 1. What this is

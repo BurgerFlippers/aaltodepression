@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The message test: a support signal runs the person's own "Mind Demo SMS" Apple Shortcut.
-/// Used by the Trends "SMS demo" button and by the advanced demo controls.
+/// Used by the Trends "Send SMS demo" button and by the advanced demo controls.
 struct BesideSMSDemoSection: View {
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.openURL) private var openURL

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Bands for Steadiness, shown as words to the person. The number itself stays in Days.
+/// Bands for Steadiness, shown as words to the person. The number itself stays in the detail views.
 nonisolated enum SteadinessBand: Sendable {
     case close, bitOff, further
 
@@ -18,8 +18,8 @@ nonisolated enum SteadinessBand: Sendable {
 }
 
 /// How much each signal and each score pulls Steadiness down, in points.
-/// A score is the equal-weight mean of its signals, so a signal's effect on its score is
-/// (sub - 100) / n, and the effects of one score add up to score - 100.
+/// A score is the weighted mean of its signals, so a signal's effect on its score is
+/// (sub - 100) * weight / total weight, and the effects of one score add up to score - 100.
 nonisolated enum Effects {
     static func onScore(_ part: ScorePart, in parts: [ScorePart]) -> Double {
         let w = parts.map(\.weight).reduce(0, +)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The live day only. History and editable judging data live in the Demo tab.
+/// The live day only, plus an unsaved demo task preview. History and demo data live in the Trends tab.
 struct EverydayTodayView: View {
     @Environment(BesidePresentation.self) private var presentation
     @State private var showMessages = false

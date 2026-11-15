@@ -93,7 +93,7 @@ enum BesideHealthMetric: String, CaseIterable, Identifiable {
 
 struct BesideDemoControlsView: View {
     var embeddedInDemo = false
-    /// Reading edits are an advanced demo control; the main Trends screen opens this read-only.
+    /// Reading edits are an advanced demo control; pass false to show the readings read-only.
     var allowsEditing = true
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.dismiss) private var dismiss

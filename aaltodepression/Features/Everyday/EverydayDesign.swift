@@ -43,7 +43,7 @@ struct EverydayHeading: View {
     }
 }
 
-/// The same Beside mark used on the Home Screen, without a separate mascot.
+/// The same MindMaintainer mark used on the Home Screen, without a separate mascot.
 struct BesideLogoView: View {
     var body: some View {
         Image("MindLogo").resizable().scaledToFit()
