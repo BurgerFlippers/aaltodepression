@@ -141,4 +141,5 @@ nonisolated struct TodayPlan: Sendable, Equatable {
     let reward: DayReward
     /// Things the planner has learned about this person, shown in plain words.
     let insights: [String]
+    var reachOutPrompt: ReachOutPrompt? = nil
 }

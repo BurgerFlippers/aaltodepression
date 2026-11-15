@@ -18,9 +18,8 @@ struct EverydayContactsEditor: View {
         }.prefix(query.isEmpty ? 3 : 20))
     }
     var body: some View {
-        @Bindable var store = store
         VStack(alignment: .leading, spacing: 18) {
-            ForEach($store.state.people) { $person in
+            ForEach(store.state.people) { person in
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(person.name).font(.headline)
@@ -28,7 +27,7 @@ struct EverydayContactsEditor: View {
                     }
                     Spacer(minLength: 4)
                     Menu {
-                        Picker("Role", selection: $person.role) {
+                        Picker("Role", selection: Self.roleBinding(for: person, in: store)) {
                             ForEach(NetworkRole.allCases) { role in Text(role.title).tag(role) }
                         }
                         Button("Remove person", role: .destructive) { store.state.people.removeAll { $0.id == person.id } }
@@ -79,6 +78,15 @@ struct EverydayContactsEditor: View {
         }
         .sheet(isPresented: $showManual) { EverydayManualContactView() }
     }
+    /// Menus can finish reading/writing a binding after their row has been removed.
+    /// Resolve the current record by stable ID; never retain an array index across deletion.
+    @MainActor static func roleBinding(for person: EverydayPerson, in store: EverydayStore) -> Binding<NetworkRole> {
+        Binding(get: { store.state.people.first(where: { $0.id == person.id })?.role ?? person.role }, set: { role in
+            guard let index = store.state.people.firstIndex(where: { $0.id == person.id }) else { return }
+            store.state.people[index].role = role
+        })
+    }
+
     private func loadSuggestions() async {
         loading = true
         defer { loading = false }
@@ -144,17 +152,6 @@ struct EverydayNetworkView: View {
     var body: some View {
         Form {
             Section("Your people") { EverydayContactsEditor() }
-            Section("Choose a role") {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Loved one").font(.headline)
-                    Text("Practical help with food, groceries and home.").font(.subheadline).foregroundStyle(.secondary)
-                }.padding(.vertical, 4)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Friend").font(.headline)
-                    Text("Company for walks, coffee and everyday moments.").font(.subheadline).foregroundStyle(.secondary)
-                }.padding(.vertical, 4)
-            }
-            Section { NavigationLink("Background support") { EverydayBackgroundSupportView() } }
         }.navigationTitle("Your people").navigationBarTitleDisplayMode(.inline)
     }
 }

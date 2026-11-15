@@ -34,7 +34,7 @@ for n in 30...32 { if days.first(where: { DemoSource.number(of: $0.day) == n })?
 for n in 38...40 { if days.first(where: { DemoSource.number(of: $0.day) == n })?.result.travelling != true { failures.append("trip day \(n) not flagged") } }
 
 // Every feature key in the catalog that the demo can provide must be present.
-let notInDemo: Set<String> = []
+let notInDemo: Set<String> = [F.dietaryEnergy, F.dietaryWater, F.dietaryProtein, F.dietaryCarbs, F.dietaryFat]
 let missing = FeatureCatalog.all.map(\.key).filter { !notInDemo.contains($0) && table.dayCount($0) == 0 }
 if !missing.isEmpty { failures.append("demo lacks features: \(missing)") }
 
@@ -48,6 +48,9 @@ for n in [49, 50, 55] {
     }
 }
 
+failures += reachOutChecks()
+failures += sidequestChecks()
+failures += demoScenarioChecks()
 failures += plannerChecks(table: table, history: days)
 failures += backendChecks(table: table)
 failures += screenTimeChecks(table: table)

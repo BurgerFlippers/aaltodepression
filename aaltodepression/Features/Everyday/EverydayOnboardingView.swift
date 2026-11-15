@@ -13,12 +13,12 @@ struct EverydayOnboardingView: View {
                         case 0:
                             BesideLogoView().frame(width: 116, height: 116).padding(.top, 18)
                             EverydayHeading(eyebrow: "A little support, every day", title: "Your day.\nA little lighter.")
-                            Text("Beside prepares the small things, so you can start with just one.").font(.title3).foregroundStyle(EverydayStyle.muted)
+                            Text("Mind prepares the small things, so you can start with just one.").font(.title3).foregroundStyle(EverydayStyle.muted)
                             Text("Set up your support on a good day, so you have someone beside you when things feel harder.").foregroundStyle(EverydayStyle.muted)
                             Label("A couple of minutes to get started", systemImage: "clock").font(.subheadline)
                         case 1:
-                            EverydayHeading(eyebrow: "1 of 5 · About you", title: "Let's start with you.")
-                            Text("A few basics. You can change these later.").foregroundStyle(EverydayStyle.muted)
+                            EverydayHeading(eyebrow: "1 of 5 · Your name", title: "What should we call you?")
+                            Text("Just your first name. You can change it later.").foregroundStyle(EverydayStyle.muted)
                             EverydayProfileFields()
                         case 2:
                             EverydayHeading(eyebrow: "2 of 5 · Your people", title: "Choose your people on a good day.")
@@ -26,7 +26,7 @@ struct EverydayOnboardingView: View {
                             Text("A loved one can help with practical things. A friend is there for everyday company.").font(.subheadline).foregroundStyle(EverydayStyle.muted)
                             EverydayContactsEditor()
                         case 3:
-                            EverydayHeading(eyebrow: "3 of 5 · Support in advance", title: "Agree on help while things feel easier.")
+                            EverydayHeading(eyebrow: "3 of 5 · Support in advance", title: "A hand with everyday things.")
                             EverydaySupportSetupFields()
                         case 4:
                             EverydayHeading(eyebrow: "4 of 5 · Your rhythm", title: "A day that fits you.")
@@ -34,9 +34,9 @@ struct EverydayOnboardingView: View {
                         default:
                             BesideLogoView().frame(width: 88, height: 88)
                             EverydayHeading(eyebrow: "5 of 5 · Ready", title: "You don't have to do it all.")
-                            Text("Mark meals with one tap. Let your iPhone notice movement, and connect sleep if you want to.").foregroundStyle(EverydayStyle.muted)
+                            Text("Share Apple Health data to guide three daily choices. Tap the challenge that feels right today.").foregroundStyle(EverydayStyle.muted)
                             EverydaySensorSettings()
-                            EverydayNotice(text: "Only occasional questions about groceries and laundry. Background support is a local demo for now; nothing is sent to your people automatically.")
+                            EverydayNotice(text: "Reach out when you need a hand. Automatic support is shown separately in the demo; nothing is delivered automatically.")
                         }
                     }.padding(24)
                 }.scrollDismissesKeyboard(.interactively)
@@ -50,7 +50,7 @@ struct EverydayOnboardingView: View {
                 }.padding(.horizontal, 24).padding(.vertical, 12)
             }.background(EverydayStyle.paper)
             .toolbar {
-                ToolbarItem(placement: .principal) { Text("Beside").font(.title2.bold()) }
+                ToolbarItem(placement: .principal) { Text("Mind").font(.title2.bold()) }
                 if page > 0 { ToolbarItem(placement: .topBarLeading) { Button { page -= 1 } label: { Image(systemName: "chevron.left") }.accessibilityLabel("Previous step") } }
                 ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) } }
             }.navigationBarTitleDisplayMode(.inline)
@@ -60,64 +60,14 @@ struct EverydayOnboardingView: View {
 
 struct EverydayProfileFields: View {
     @Environment(EverydayStore.self) private var store
-    @State private var selectedField: ProfileWheelField?
     var body: some View {
         @Bindable var store = store
-        VStack(spacing: 0) {
-            HStack {
-                Text("First name")
-                TextField("Optional", text: $store.state.profile.name).multilineTextAlignment(.trailing).textContentType(.givenName)
-            }.padding(16)
-            Divider().padding(.leading, 16)
-            ForEach(ProfileWheelField.allCases) { field in
-                Button { selectedField = field } label: {
-                    HStack {
-                        Text(field.title)
-                        Spacer()
-                        Text(value(field)).foregroundStyle(.secondary)
-                        Image(systemName: "chevron.up.chevron.down").font(.caption).foregroundStyle(.tertiary)
-                    }.padding(16).contentShape(Rectangle())
-                }.buttonStyle(.plain)
-                if field != .height { Divider().padding(.leading, 16) }
-            }
-        }.background(.white, in: RoundedRectangle(cornerRadius: 18))
-        .sheet(item: $selectedField) { field in
-            NavigationStack {
-                Picker(field.title, selection: binding(field)) {
-                    if field == .gender {
-                        ForEach(["Prefer not to say", "Female", "Male", "Other"], id: \.self) { Text($0).tag($0) }
-                    } else {
-                        Text("Not set").tag("")
-                        let current = binding(field).wrappedValue
-                        if !current.isEmpty && Int(current) == nil { Text("\(current) \(field.unit)").tag(current) }
-                        ForEach(field.range, id: \.self) { value in Text("\(value) \(field.unit)").tag(String(value)) }
-                    }
-                }.pickerStyle(.wheel).labelsHidden().padding(.horizontal)
-                    .navigationTitle(field.title).navigationBarTitleDisplayMode(.inline)
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { selectedField = nil } } }
-            }.presentationDetents([.medium])
-        }
+        HStack {
+            Text("First name")
+            TextField("Your name", text: $store.state.profile.name)
+                .multilineTextAlignment(.trailing).textContentType(.givenName)
+        }.padding(16).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
     }
-    private func binding(_ field: ProfileWheelField) -> Binding<String> {
-        switch field {
-        case .gender: Binding(get: { store.state.profile.gender }, set: { store.state.profile.gender = $0 })
-        case .age: Binding(get: { store.state.profile.age }, set: { store.state.profile.age = $0 })
-        case .weight: Binding(get: { store.state.profile.weight }, set: { store.state.profile.weight = $0 })
-        case .height: Binding(get: { store.state.profile.height }, set: { store.state.profile.height = $0 })
-        }
-    }
-    private func value(_ field: ProfileWheelField) -> String {
-        let current = binding(field).wrappedValue
-        return current.isEmpty ? "Not set" : current + (field.unit.isEmpty ? "" : " \(field.unit)")
-    }
-}
-
-enum ProfileWheelField: String, CaseIterable, Identifiable {
-    case gender, age, weight, height
-    var id: String { rawValue }
-    var title: String { switch self { case .gender: "Gender"; case .age: "Age"; case .weight: "Weight"; case .height: "Height" } }
-    var unit: String { switch self { case .gender: ""; case .age: "years"; case .weight: "kg"; case .height: "cm" } }
-    var range: ClosedRange<Int> { switch self { case .gender: 0...0; case .age: 1...120; case .weight: 1...400; case .height: 30...250 } }
 }
 
 struct EverydayRoutineFields: View {
@@ -129,14 +79,7 @@ struct EverydayRoutineFields: View {
             timeRow(.wake)
             Divider().padding(.leading, 16)
             timeRow(.bed)
-            Divider().padding(.leading, 16)
-            Toggle("Medication reminder", isOn: $store.state.profile.usesMedication).tint(EverydayStyle.orange).padding(16)
-            if store.state.profile.usesMedication {
-                Divider().padding(.leading, 16)
-                timeRow(.medication)
-                Text("Follow your own medication instructions. This sets the time shown in your day.").font(.footnote).foregroundStyle(.secondary).padding(16)
-            }
-        }.background(.white, in: RoundedRectangle(cornerRadius: 18))
+        }.background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
         .sheet(item: $timeField) { field in
             NavigationStack {
                 DatePicker(field.title, selection: timeBinding(field), displayedComponents: .hourAndMinute)
@@ -154,40 +97,45 @@ struct EverydayRoutineFields: View {
     private func timeBinding(_ field: RhythmTimeField) -> Binding<Date> {
         Binding(get: {
             let p = store.state.profile
-            let hour = field == .wake ? p.wakeHour : field == .bed ? p.bedtimeHour : p.medicationHour
-            let minute = field == .wake ? p.wakeMinute : field == .bed ? p.bedtimeMinute : p.medicationMinute
+            let hour = field == .wake ? p.wakeHour : p.bedtimeHour
+            let minute = field == .wake ? p.wakeMinute : p.bedtimeMinute
             return Calendar.current.date(bySettingHour: hour, minute: minute ?? 0, second: 0, of: Date()) ?? Date()
         }, set: { value in
             let c = Calendar.current.dateComponents([.hour, .minute], from: value)
             switch field {
             case .wake: store.state.profile.wakeHour = c.hour ?? 8; store.state.profile.wakeMinute = c.minute
             case .bed: store.state.profile.bedtimeHour = c.hour ?? 22; store.state.profile.bedtimeMinute = c.minute
-            case .medication: store.state.profile.medicationHour = c.hour ?? 8; store.state.profile.medicationMinute = c.minute
             }
         })
     }
 }
 
 enum RhythmTimeField: String, Identifiable {
-    case wake, bed, medication
+    case wake, bed
     var id: String { rawValue }
-    var title: String { switch self { case .wake: "Usual wake-up time"; case .bed: "Usual bedtime"; case .medication: "Medication time" } }
+    var title: String { switch self { case .wake: "Usual wake-up time"; case .bed: "Usual bedtime" } }
 }
 
 struct EverydaySensorSettings: View {
     @Environment(EverydayStore.self) private var store
+    @Environment(BesidePresentation.self) private var presentation
+    @State private var connecting = false
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Toggle("iPhone movement", isOn: Binding(get: { store.state.motionEnabled == true }, set: { enabled in
                 if enabled { Task { await store.connectMotion() } } else { store.disconnectMotion() }
             })).tint(EverydayStyle.orange)
-            Text("Uses your iPhone steps. You can also mark movement yourself.").font(.footnote).foregroundStyle(.secondary)
+            Text("Optional iPhone steps help guide your daily task choices.").font(.footnote).foregroundStyle(.secondary)
             Divider()
-            Toggle("Apple Health sleep", isOn: Binding(get: { store.state.healthSleepEnabled == true }, set: { enabled in
-                if enabled { Task { await store.connectSleep() } } else { store.disconnectSleep() }
-            })).tint(EverydayStyle.orange)
-            Text("Uses recorded sleep. Phone inactivity is not treated as sleep.").font(.footnote).foregroundStyle(.secondary)
+            Button {
+                connecting = true
+                Task { await presentation.connectHealth(); connecting = false }
+            } label: {
+                HStack { Text("Connect Apple Health"); Spacer(); if connecting { ProgressView() } else { Image(systemName: "heart.fill") } }
+            }.disabled(connecting).frame(minHeight: 44)
+            Text("Share sleep, movement, daylight and heart measurements to compare daily changes with your own history. You choose what to share in Apple's permission sheet.").font(.footnote).foregroundStyle(.secondary)
+            if let status = presentation.healthStatus { Text(status).font(.footnote).foregroundStyle(.secondary) }
             if let status = store.sensorStatus { Text(status).font(.footnote).foregroundStyle(EverydayStyle.muted) }
-        }.padding(18).background(.white, in: RoundedRectangle(cornerRadius: 18))
+        }.padding(18).background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 18))
     }
 }

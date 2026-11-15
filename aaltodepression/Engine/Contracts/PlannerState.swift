@@ -72,6 +72,8 @@ nonisolated struct PlannerState: Codable, Sendable, Equatable {
     var answerLog: [AnswerRecord] = []
     /// Screen time the person reported, by the Julian day it is about (usually yesterday).
     var screenTime: [Int: ScreenTimeReport] = [:]
+    /// Independent of whole-routine completion and support messages.
+    var sidequests: [Int: SidequestDay] = [:]
 
     init(setup: PlannerSetup) { self.setup = setup }
 
@@ -80,7 +82,7 @@ nonisolated struct PlannerState: Codable, Sendable, Equatable {
     // Tolerant decoding: fields added later are simply empty in older files.
     enum CodingKeys: String, CodingKey {
         case setup, checkIns, marks, outbox, socialPlans, socialOfferedDays, safetyAskedDays, dismissedCards
-        case choreDone, groceryAnswers, heavySafetyDays, rewards, answerLog, screenTime
+        case choreDone, groceryAnswers, heavySafetyDays, rewards, answerLog, screenTime, sidequests
     }
 
     init(from decoder: Decoder) throws {
@@ -99,6 +101,7 @@ nonisolated struct PlannerState: Codable, Sendable, Equatable {
         rewards = try c.decodeIfPresent([Int: DayReward].self, forKey: .rewards) ?? [:]
         answerLog = try c.decodeIfPresent([AnswerRecord].self, forKey: .answerLog) ?? []
         screenTime = try c.decodeIfPresent([Int: ScreenTimeReport].self, forKey: .screenTime) ?? [:]
+        sidequests = try c.decodeIfPresent([Int: SidequestDay].self, forKey: .sidequests) ?? [:]
     }
 }
 

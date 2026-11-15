@@ -5,7 +5,7 @@ nonisolated enum QuestionCatalog {
     static let moodLabels = ["😞", "🙁", "😐", "🙂", "😄"]
 
     static let mood = Question(id: "mood", prompt: "How is today feeling?", kind: .likert(1...5, labels: moodLabels))
-    static let energy = Question(id: "energy", prompt: "How much do you have in you today?", kind: .scale(Energy.allCases.map(\.title)))
+    static let energy = Question(id: "energy", prompt: "How is your energy today?", kind: .scale(Energy.allCases.map(\.title)))
     static let feelings = Question(id: "feelings", prompt: "Any of these?", kind: .multiSelect(Feeling.allCases.map(\.title)), optional: true)
     static let food = Question(id: "foodAtHome", prompt: "Is there food at home for the next couple of days?",
                                kind: .singleChoice(FoodAtHome.allCases.map(\.title)), optional: true)

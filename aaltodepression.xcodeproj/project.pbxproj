@@ -6,9 +6,47 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A10000000000000000000010 /* BesideWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* BesideWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A10000000000000000000012 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000004;
+			remoteInfo = BesideWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A10000000000000000000011 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				A10000000000000000000010 /* BesideWidgetExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* aaltodepression.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = aaltodepression.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000001 /* BesideWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = BesideWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000016 /* Config/Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A10000000000000000000009 /* Exceptions for "BesideWidget" folder in "BesideWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A10000000000000000000004 /* BesideWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		000000000000000000000010 /* aaltodepression */ = {
@@ -16,10 +54,28 @@
 			path = aaltodepression;
 			sourceTree = "<group>";
 		};
+		A10000000000000000000002 /* BesideWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A10000000000000000000009 /* Exceptions for "BesideWidget" folder in "BesideWidgetExtension" target */,
+			);
+			path = BesideWidget;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000003 /* SharedSidequest */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SharedSidequest;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		000000000000000130000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		A10000000000000000000007 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
 			);
@@ -31,6 +87,9 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000010 /* aaltodepression */,
+				A10000000000000000000002 /* BesideWidget */,
+				A10000000000000000000003 /* SharedSidequest */,
+				A10000000000000000000016 /* Config/Signing.xcconfig */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -39,6 +98,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000120 /* aaltodepression.app */,
+				A10000000000000000000001 /* BesideWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -53,16 +113,40 @@
 				000000000000000120000000 /* Sources */,
 				000000000000000130000000 /* Frameworks */,
 				000000000000000140000000 /* Resources */,
+				A10000000000000000000011 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
+			dependencies = (
+				A10000000000000000000013 /* PBXTargetDependency */,
+			);
 			fileSystemSynchronizedGroups = (
 				000000000000000000000010 /* aaltodepression */,
+				A10000000000000000000003 /* SharedSidequest */,
 			);
 			name = aaltodepression;
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* aaltodepression.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A10000000000000000000004 /* BesideWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000005 /* Build configuration list for PBXNativeTarget "BesideWidgetExtension" */;
+			buildPhases = (
+				A10000000000000000000006 /* Sources */,
+				A10000000000000000000007 /* Frameworks */,
+				A10000000000000000000008 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000002 /* BesideWidget */,
+				A10000000000000000000003 /* SharedSidequest */,
+			);
+			name = BesideWidgetExtension;
+			productName = BesideWidgetExtension;
+			productReference = A10000000000000000000001 /* BesideWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -94,12 +178,18 @@
 			projectRoot = "";
 			targets = (
 				000000000000000100000000 /* aaltodepression */,
+				A10000000000000000000004 /* BesideWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		000000000000000140000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		A10000000000000000000008 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -112,11 +202,25 @@
 			files = (
 			);
 		};
+		A10000000000000000000006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A10000000000000000000013 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000004 /* BesideWidgetExtension */;
+			targetProxy = A10000000000000000000012 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		000000000000000011000000 /* Debug configuration for PBXProject "aaltodepression" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000016 /* Config/Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -187,6 +291,7 @@
 		};
 		000000000000000012000000 /* Release configuration for PBXProject "aaltodepression" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000016 /* Config/Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -251,18 +356,18 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Config/App.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Config/AppWithWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 45DJ55R84X;
+				DEVELOPMENT_TEAM = "$(BESIDE_DEVELOPMENT_TEAM)";
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Beside;
+				INFOPLIST_KEY_CFBundleDisplayName = Mind;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Counts how many events you have each day and how long they last. Titles and details are never read.";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads sleep, movement, heart, daylight and other Health data to notice changes in your daily rhythm. Everything is worked out on this phone.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads sleep, movement, daylight and heart measurements to show changes in your daily rhythm. Logged nutrition, mood, mindfulness and existing questionnaire scores are shown as extra context when you choose to share them. Health readings stay on this phone.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Only used to save a practice breathing session when you ask for it in Settings.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Counts time at home and places visited. Locations never leave this phone.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Counts time at home and places visited. Locations never leave this phone.";
@@ -285,7 +390,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = fi.aaltodepression;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BESIDE_HOST_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = iphoneos;
@@ -307,18 +412,18 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Config/App.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Config/AppWithWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 45DJ55R84X;
+				DEVELOPMENT_TEAM = "$(BESIDE_DEVELOPMENT_TEAM)";
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Config/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Beside;
+				INFOPLIST_KEY_CFBundleDisplayName = Mind;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Counts how many events you have each day and how long they last. Titles and details are never read.";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads sleep, movement, heart, daylight and other Health data to notice changes in your daily rhythm. Everything is worked out on this phone.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads sleep, movement, daylight and heart measurements to show changes in your daily rhythm. Logged nutrition, mood, mindfulness and existing questionnaire scores are shown as extra context when you choose to share them. Health readings stay on this phone.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Only used to save a practice breathing session when you ask for it in Settings.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Counts time at home and places visited. Locations never leave this phone.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Counts time at home and places visited. Locations never leave this phone.";
@@ -341,7 +446,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = fi.aaltodepression;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BESIDE_HOST_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = iphoneos;
@@ -354,6 +459,62 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A10000000000000000000014 /* Debug configuration for PBXNativeTarget "BesideWidgetExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Config/Widget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(BESIDE_DEVELOPMENT_TEAM)";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BesideWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Mind;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BESIDE_HOST_BUNDLE_IDENTIFIER).sidequest";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A10000000000000000000015 /* Release configuration for PBXNativeTarget "BesideWidgetExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Config/Widget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(BESIDE_DEVELOPMENT_TEAM)";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BesideWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Mind;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BESIDE_HOST_BUNDLE_IDENTIFIER).sidequest";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -375,6 +536,14 @@
 			buildConfigurations = (
 				000000000000000111000000 /* Debug configuration for PBXNativeTarget "aaltodepression" */,
 				000000000000000112000000 /* Release configuration for PBXNativeTarget "aaltodepression" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000005 /* Build configuration list for PBXNativeTarget "BesideWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000014 /* Debug configuration for PBXNativeTarget "BesideWidgetExtension" */,
+				A10000000000000000000015 /* Release configuration for PBXNativeTarget "BesideWidgetExtension" */,
 			);
 			defaultConfigurationName = Release;
 		};

@@ -2,37 +2,51 @@ import SwiftUI
 import UserNotifications
 
 struct EverydayRootView: View {
-    @State private var store: EverydayStore
-    @State private var presentation: BesidePresentation
-    #if DEBUG
-    @AppStorage("beside.demobar.visible") private var showDemobar = true
-    #else
-    @AppStorage("beside.demobar.visible") private var showDemobar = false
-    #endif
-
-    init() {
-        let profile = EverydayStore()
-        _store = State(initialValue: profile)
-        _presentation = State(initialValue: BesidePresentation(profileStore: profile))
+    @State private var presentation: BesidePresentation?
+    var body: some View {
+        Group {
+            if let presentation { EverydaySessionView(store: presentation.profileStore, presentation: presentation) }
+            else { ProgressView("Opening Mind…") }
+        }.task {
+            if presentation == nil { presentation = BesidePresentation(profileStore: EverydayStore()) }
+        }
     }
+}
+
+private struct EverydaySessionView: View {
+    @Bindable var store: EverydayStore
+    @Bindable var presentation: BesidePresentation
+    @State private var selectedTab = 0
+    @State private var demoDay: Day?
     @Environment(\.scenePhase) private var phase
     var body: some View {
         VStack(spacing: 0) {
-            if showDemobar && store.state.completedSetup { BesideDemoBar() }
             Group {
-            if store.state.completedSetup {
-                TabView {
-                    EverydayTodayView().tabItem { Label("Today", systemImage: "sun.max") }
-                    EverydayProfileView().tabItem { Label("You", systemImage: "person.crop.circle") }
-                }
-            } else { EverydayOnboardingView() }
+                if store.state.completedSetup {
+                    TabView(selection: $selectedTab) {
+                        EverydayTodayView().tabItem { Label("Routine", systemImage: "sun.max") }.tag(0)
+                        BesideDemoView().tabItem { Label("Trends", systemImage: "chart.xyaxis.line") }.tag(2)
+                        BesideForYouView().tabItem { Label("For you", systemImage: "heart") }.tag(3)
+                        EverydayProfileView().tabItem { Label("You", systemImage: "person.crop.circle") }.tag(1)
+                    }
+                } else { EverydayOnboardingView() }
             }
         }
-        .fontDesign(.rounded)
+        .onChange(of: selectedTab) { old, new in
+            if old == 2 { demoDay = presentation.day; presentation.returnToLive() }
+            if new == 2 { presentation.selectDay(demoDay ?? presentation.preferredTrendDay, refreshSnapshot: true) }
+        }
+        .onChange(of: presentation.liveBackend.planner.state.sidequests) { _, _ in presentation.syncSidequestWidget() }
+        .onChange(of: presentation.sidequestFocus) { _, _ in selectedTab = 0 }
+        .onOpenURL { url in
+            guard url.scheme == "beside" else { return }
+            if url.host == "sidequest" { presentation.openSidequest(); selectedTab = 0 }
+            if url.host == "reach-out" { presentation.openMessagesFromLink(); selectedTab = 0 }
+        }
         .foregroundStyle(EverydayStyle.ink)
         .environment(\.locale, Locale(identifier: "en_GB"))
-        .tint(EverydayStyle.ink)
-        .preferredColorScheme(.light)
+        .tint(EverydayStyle.accent)
+        .preferredColorScheme(.dark)
         .task {
             BesideNotificationInbox.shared.drain(into: presentation)
             // Retire notifications from the previous prototype when upgrading.
@@ -44,6 +58,7 @@ struct EverydayRootView: View {
             BesideNotificationInbox.shared.drain(into: presentation)
             store.refreshDay()
             await presentation.refresh()
+            await presentation.repairHealthAccessIfNeeded()
         }
         .task(id: presentation.setupSignature) {
             do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
