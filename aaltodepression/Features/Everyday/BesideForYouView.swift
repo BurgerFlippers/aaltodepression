@@ -11,7 +11,7 @@ struct BesideForYouView: View {
                     action("Reach out", detail: "A little company, in your own words.", symbol: "bubble.left.and.bubble.right", color: EverydayStyle.mint) { reachOut = true }
                 }.padding(20)
             }
-            .background(EverydayStyle.paper).navigationTitle("For you")
+            .background(EverydayStyle.paper).mindHeader("For you")
             .sheet(isPresented: $checkIn) { BesideCheckInView() }
             .sheet(isPresented: $reachOut) { EverydaySocialView() }
         }

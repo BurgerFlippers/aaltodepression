@@ -75,3 +75,28 @@ struct BalanceScale: View {
         HStack(spacing: 3) { ForEach(0..<4, id: \.self) { Capsule().fill(Self.colors[$0]) } }.frame(height: 8)
     }
 }
+
+/// One header for every tab: the page title sits on the toolbar row, left, beside the page's buttons.
+private struct MindHeader: ViewModifier {
+    let title: String
+    func body(content: Content) -> some View {
+        content
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) }
+                if #available(iOS 26.0, *) {
+                    ToolbarItem(placement: .topBarLeading) { headerText }.sharedBackgroundVisibility(.hidden)
+                } else {
+                    ToolbarItem(placement: .topBarLeading) { headerText }
+                }
+            }
+    }
+    private var headerText: some View {
+        Text(title).font(.title.bold()).foregroundStyle(.primary).fixedSize().accessibilityAddTraits(.isHeader)
+    }
+}
+
+extension View {
+    func mindHeader(_ title: String) -> some View { modifier(MindHeader(title: title)) }
+}

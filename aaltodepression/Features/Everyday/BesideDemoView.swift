@@ -12,14 +12,7 @@ struct BesideDemoView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    DatePicker("Day", selection: Binding(get: { presentation.day.start() }, set: { presentation.selectDay(Day($0)) }),
-                               in: (Day(Date()) - 120).start()...Date(), displayedComponents: .date)
-                        .accessibilityIdentifier("demo-day-picker")
                     BesideTrendBalanceView()
-                    if presentation.simulatedData {
-                        Label("Simulated data · Apple Health is not read", systemImage: "testtube.2")
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(EverydayStyle.accent)
-                    }
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Your signals").font(.title3.bold())
                         VStack(spacing: 0) {
@@ -63,8 +56,15 @@ struct BesideDemoView: View {
                     }.buttonStyle(.plain).accessibilityIdentifier("trends-health-readings")
                     Text(presentation.selectedDayAvailability).font(.caption).foregroundStyle(.secondary)
                 }.padding(20)
-            }.background(EverydayStyle.paper).navigationTitle("Trends")
-                .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Demo", systemImage: "slider.horizontal.3") { showDemo = true }.accessibilityIdentifier("trends-demo") } }
+            }.background(EverydayStyle.paper).mindHeader("Trends")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        DatePicker("Day", selection: Binding(get: { presentation.day.start() }, set: { presentation.selectDay(Day($0)) }),
+                                   in: (Day(Date()) - 120).start()...Date(), displayedComponents: .date)
+                            .labelsHidden().accessibilityIdentifier("demo-day-picker")
+                    }
+                    ToolbarItem(placement: .topBarTrailing) { Button("Demo", systemImage: "slider.horizontal.3") { showDemo = true }.accessibilityIdentifier("trends-demo") }
+                }
                 .sheet(isPresented: $showDemo) { BesideDemoScenarioView() }
                 .sheet(isPresented: $showReadings) { BesideDemoControlsView(embeddedInDemo: true) }
         }
@@ -115,9 +115,11 @@ struct BesideTrendBalanceView: View {
             }.frame(height: 18).accessibilityHidden(true)
             HStack { Text("Your usual"); Spacer(); Text("More support") }.font(.caption).foregroundStyle(.secondary)
             BesideBalanceTrend()
-            if presentation.hasDemoEdits {
+            if presentation.simulatedData {
+                Label("Simulated data · Apple Health is not read", systemImage: "testtube.2").font(.caption).foregroundStyle(EverydayStyle.accent)
+            } else if presentation.hasDemoEdits {
                 Label("Demo values · Health is unchanged", systemImage: "testtube.2").font(.caption).foregroundStyle(EverydayStyle.accent)
-            } else { Text("Compared with your own daily rhythm").font(.caption).foregroundStyle(.secondary) }
+            } 
         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
             .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: EverydayStyle.cardRadius, style: .continuous))
             .accessibilityElement(children: .combine)

@@ -15,7 +15,7 @@ struct EverydayProfileView: View {
                     }
                 }.padding(20)
             }.scrollDismissesKeyboard(.interactively).background(EverydayStyle.paper)
-                .navigationTitle("You")
+                .mindHeader("You")
                 .toolbar {
                     ToolbarItemGroup(placement: .keyboard) {
                         Spacer()
