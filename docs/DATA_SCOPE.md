@@ -110,7 +110,7 @@ In the app now:
 
 - There is no clinic pairing and no network code in the running app. Nothing is sent to a clinic.
 - Reach out and task invitations open Messages with a draft. The person taps Send.
-- The SMS demo runs the person's own Apple Shortcut, which sends one fixed test text to the contact the person set up in it. The app passes only an opaque run token: no Health values, phone number or message text.
+- The SMS demo runs the person's own Apple Shortcut. The app passes it the phone number of the demo contact the person chose and a generic message that names only the contact's and the person's first names. No Health values. The contact's name and number are kept in UserDefaults on the phone.
 - Notifications show only if the person has allowed them (the app asks when they set a task reminder). The task reminder says "A small step, when you're ready", with no task or Health details. The planner's repeating daily notifications (morning check-in, medicine, shopping day, wind-down) are turned off in the running app (`Planner.schedulesDailyPlan = false`), and any already pending are removed.
 - 112 and the MIELI Crisis Helpline are shown in For you → Get support (for information only in the demo). Onboarding does not show them yet.
 

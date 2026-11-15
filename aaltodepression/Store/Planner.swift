@@ -259,6 +259,16 @@ final class Planner {
         return true
     }
 
+    /// Undo the day's choice and any completions, also after tasks were marked done.
+    func revertSidequest(on expectedDay: Day) {
+        syncClock()
+        guard day == expectedDay, var offer = state.sidequests[day.jdn] else { return }
+        offer.revert()
+        if !isDemo { Task { await SidequestReminders.cancel(on: expectedDay) } }
+        state.sidequests[day.jdn] = offer
+        save()
+    }
+
     @discardableResult func completeAnotherSidequest(_ id: String, on expectedDay: Day) -> Bool {
         syncClock()
         guard day == expectedDay, var offer = state.sidequests[day.jdn], offer.completeAnother(id) else { return false }
