@@ -17,6 +17,8 @@ final class BesidePresentation {
     private(set) var healthReadAt: Date?
     private(set) var demoLoad: Double?
     private(set) var demoRecipientID: String?
+    /// Demo only: hand-set area scores for the selected day, to see how the challenges respond.
+    private(set) var scoreOverrides: [ScoreKind: Double] = [:]
     private var demoEdits: [Int: [String: Double]] = [:]
     let profileStore: EverydayStore
     private(set) var isRefreshing = false
@@ -237,7 +239,7 @@ final class BesidePresentation {
         #if DEBUG
         print("Mind Trends day: \(day); availableTypes=\(table.numbers.values.filter { $0[day] != nil }.count)")
         #endif
-        if selectedDay != day { demoLoad = nil; demoRecipientID = nil }
+        if selectedDay != day { demoLoad = nil; demoRecipientID = nil; scoreOverrides.removeAll() }
         selectedDay = day
         backend = sandbox!
         refreshSandbox()
@@ -245,6 +247,7 @@ final class BesidePresentation {
 
     func returnToLive() {
         selectedDay = nil
+        scoreOverrides.removeAll()
         demoLoad = nil
         demoRecipientID = nil
         backend = liveBackend
@@ -290,8 +293,15 @@ final class BesidePresentation {
         refreshSandbox(replaceSidequests: true)
     }
 
+    func setScoreOverride(_ kind: ScoreKind, to value: Double?) {
+        guard isDemoMode else { return }
+        scoreOverrides[kind] = value.map { min(100, max(0, $0)) }
+        refreshSandbox(replaceSidequests: true)
+    }
+
     func resetDemoScenario() {
         guard let selectedDay else { return }
+        scoreOverrides.removeAll()
         demoLoad = nil
         demoRecipientID = nil
         demoEdits.removeAll()
@@ -362,6 +372,15 @@ final class BesidePresentation {
         }
         let inputs = planningTable(displayedTable.truncated(through: selectedDay))
         healthHistory = StepEngine.run(table: inputs, through: selectedDay, homeTimeZone: TimeZone.current.identifier, locationEnabled: usesLocation)
+        if !scoreOverrides.isEmpty, let i = healthHistory.firstIndex(where: { $0.day == selectedDay }) {
+            let old = healthHistory[i]
+            var result = old.result
+            for (kind, value) in scoreOverrides { result.scores[kind] = value }
+            let weight = result.scores.keys.map(\.weight).reduce(0, +)
+            result.steadiness = weight > 0 ? result.scores.map { $0.key.weight * $0.value }.reduce(0, +) / weight : nil
+            healthHistory[i] = StepDay(result: result, baselineDay: old.baselineDay, isDrift: old.isDrift,
+                                       driftDaysInLastWeek: old.driftDaysInLastWeek, step: old.step, since: old.since)
+        }
         sandbox.refresh(day: selectedDay, minutes: 18 * 60, table: inputs, history: healthHistory, locationEnabled: usesLocation)
         sandbox.planner.prepareSidequests(signal: healthSignal, replaceUnchosen: replaceSidequests)
     }

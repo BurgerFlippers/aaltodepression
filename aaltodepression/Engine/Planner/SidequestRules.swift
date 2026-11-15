@@ -6,17 +6,22 @@ nonisolated enum SidequestRules {
         let usable = signal.flatMap { day - $0.day >= 0 && day - $0.day <= 1 ? $0 : nil }
         let scores = usable?.result.scores ?? [:]
         var candidates: [(SidequestCategory, Double)] = []
+        // Each challenge category takes the lowest of the scores it can help: sleep and rhythm for sleep,
+        // movement and daylight for movement. Location alone never creates a need.
         if let sleep = [scores[.sleep], scores[.rhythm]].compactMap({ $0 }).filter(\.isFinite).min() {
             candidates.append((.sleep, sleep))
         }
-        if let movement = scores[.movement], movement.isFinite { candidates.append((.movement, movement)) }
+        if let movement = [scores[.movement], scores[.daylight]].compactMap({ $0 }).filter(\.isFinite).min() {
+            candidates.append((.movement, movement))
+        }
         candidates.sort { $0.1 == $1.1 ? $0.0.rawValue < $1.0.rawValue : $0.1 < $1.1 }
         let small = usable?.result.likelyIll == true || usable?.step == .reachOut || candidates.first.map { $0.1 < 45 } == true
         var categories: [SidequestCategory]
         let reason: String
         if let first = candidates.first {
             categories = [first.0, first.0, first.0]
-            if candidates.count > 1, candidates[1].1 < 75, candidates[1].1 <= first.1 + 20 {
+            // Two from the area furthest from usual, one from the next, so there is always a real choice.
+            if candidates.count > 1, candidates[1].1 < 80 {
                 categories[2] = candidates[1].0
             }
             reason = categories[2] != first.0 ? "A little support for your sleep and movement, based on shared Health readings." : first.0 == .sleep ? "A small way to support your sleep, based on shared Health readings." : "A little movement, based on shared Health readings."

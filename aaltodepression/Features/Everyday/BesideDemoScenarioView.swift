@@ -28,6 +28,25 @@ struct BesideDemoScenarioView: View {
                     Text("Replaces Apple Health readings with 60 simulated days ending today: sleep, rhythm, places, movement, heart, mood and food logs. Health is never changed. Turn off to see your own data again.")
                 }
                 Section {
+                    if let offer = presentation.sidequest {
+                        ForEach(offer.options) { quest in
+                            Label(BesideQuestStyle.brief(quest, smaller: offer.startsSmall), systemImage: BesideQuestStyle.visual(quest))
+                                .font(.subheadline)
+                        }
+                        Text(offer.reason + (offer.startsSmall ? " Smaller versions today." : "")).font(.caption).foregroundStyle(.secondary)
+                    } else { Text("No challenges for this day.").foregroundStyle(.secondary) }
+                } header: { Text("Challenges now") }
+                Section {
+                    ForEach(ScoreKind.allCases.filter { $0 != .places || presentation.locationAvailable }) { kind in
+                        DemoScoreSlider(kind: kind)
+                    }
+                    if !presentation.scoreOverrides.isEmpty {
+                        Button("Use measured scores") { for kind in ScoreKind.allCases { presentation.setScoreOverride(kind, to: nil) } }
+                    }
+                } header: { Text("Scores for this day") } footer: {
+                    Text("Drag a score and release. The challenges above update right away. Demo copy only.")
+                }
+                Section {
                     LabeledContent("Demo balance", value: presentation.healthSignal?.result.steadiness.map { "\(Int($0.rounded())) / 100" } ?? "Learning your usual")
                     Text(presentation.balanceTitle).font(.subheadline).foregroundStyle(EverydayStyle.accent)
                     Slider(value: $load, in: 0...1, step: 0.05) { Text("Demo difficulty") } onEditingChanged: { editing in
@@ -78,7 +97,8 @@ struct BesideDemoScenarioView: View {
                 }
                 .onAppear {
                     load = presentation.demoLoad ?? 0
-                    if presentation.demoLoad == nil { presentation.applyDemoLoad(0) }
+                    // With simulated data on, keep its history; the difficulty slider is still there to apply on purpose.
+                    if presentation.demoLoad == nil && !presentation.simulatedData { presentation.applyDemoLoad(0) }
                     recipientID = presentation.demoRecipientID ?? contacts.first(where: { $0.name.localizedCaseInsensitiveContains("konsta") })?.id ?? contacts.first?.id ?? ""
                     request = presentation.backend.planner.outbox.first { $0.day == presentation.day && $0.contactID == recipientID && $0.status != .cancelled }
                     if request?.status == .sent { result = "Submitted to Messages. Recipient delivery is not verified." }
@@ -134,5 +154,30 @@ struct BesideDemoScenarioView: View {
     private func reset() {
         armed = false; request = nil; result = nil; load = 0
         presentation.resetDemoScenario()
+    }
+}
+
+/// One area score with a slider. Commits on release, so scoring runs once per change.
+private struct DemoScoreSlider: View {
+    let kind: ScoreKind
+    @Environment(BesidePresentation.self) private var presentation
+    @State private var value: Double = 50
+    @State private var editing = false
+    private var measured: Double? { presentation.healthSignal?.result.scores[kind] }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(kind.title)
+                if presentation.scoreOverrides[kind] != nil { Text("set").font(.caption2).foregroundStyle(EverydayStyle.accent) }
+                Spacer()
+                Text(measured == nil && !editing ? "–" : "\(Int(value.rounded()))").monospacedDigit().foregroundStyle(.secondary)
+            }
+            Slider(value: $value, in: 0...100) { Text(kind.title) } onEditingChanged: { active in
+                editing = active
+                if !active { presentation.setScoreOverride(kind, to: value) }
+            }
+        }
+        .onAppear { value = measured ?? 50 }
+        .onChange(of: measured) { _, new in if !editing { value = new ?? 50 } }
     }
 }
