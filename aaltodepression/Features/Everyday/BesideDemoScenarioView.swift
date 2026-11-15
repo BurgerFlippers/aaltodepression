@@ -1,22 +1,23 @@
 import SwiftUI
-import MessageUI
 
-/// A deliberately armed, foreground test. MessageUI still owns the real Send action.
+/// Uses the person's configured Apple Shortcut; no SMS vendor or carrier credentials in Mind.
 struct BesideDemoScenarioView: View {
     @Environment(BesidePresentation.self) private var presentation
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("beside.demo.sms.lastSent") private var lastSent = 0.0
+    @Environment(\.openURL) private var openURL
+    @AppStorage("mind.demo.shortcutConfigured.v1") private var shortcutReady = false
     @State private var load = 0.0
-    @State private var recipientID = ""
     @State private var armed = false
     @State private var request: OutgoingMessage?
-    @State private var compose = false
-    @State private var result: String?
     @State private var showReadings = false
-    private var contacts: [Contact] { presentation.liveBackend.planner.setup.contacts.filter { !ContactIntake.normalized($0.phone).isEmpty } }
-    private var recipient: Contact? { contacts.first { $0.id == recipientID } }
-    private var coolingDown: Bool { Date().timeIntervalSince1970 - lastSent < 300 }
-    private var bodyText: String { "Mind DEMO TEST — no action needed. " + (request?.text ?? "") }
+    @State private var showSetup = false
+    private var sender: DemoShortcutSender { presentation.demoShortcutSender }
+    private var konsta: Contact? {
+        presentation.liveBackend.planner.setup.contacts.first {
+            $0.name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+                .split(whereSeparator: { $0.isWhitespace }).contains("konsta") && !ContactIntake.normalized($0.phone).isEmpty
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -30,35 +31,38 @@ struct BesideDemoScenarioView: View {
                     HStack { Text("Steady days"); Spacer(); Text("Harder days") }.font(.caption).foregroundStyle(.secondary)
                     LabeledContent("Scenario", value: load >= 0.8 ? "18 changed days" : "7 changed days")
                     Button("Apply scenario") { apply() }.accessibilityIdentifier("demo-apply-scenario")
-                } header: { Text("Demo controls") } footer: { Text("Simulated sleep, movement and daylight run through the existing scoring rules. Apple Health and live records stay unchanged.") }
+                } header: { Text("Demo controls") } footer: { Text("Simulated readings run through the existing scoring rules. Real Health data and live records stay unchanged.") }
                 Section {
-                    if contacts.isEmpty { Text("Add a test contact in You → Your people first.") }
-                    else {
-                        Picker("Test recipient", selection: $recipientID) {
-                            ForEach(contacts) { Text($0.name).tag($0.id) }
-                        }.disabled(request != nil)
-                        Toggle("Prepare a test request automatically", isOn: $armed).disabled(recipient == nil || coolingDown)
-                            .accessibilityIdentifier("demo-arm-sms")
-                    }
+                    LabeledContent("To", value: konsta?.name ?? "Add Konsta in Your people")
+                    Toggle("Send a demo text automatically", isOn: $armed)
+                        .disabled(konsta == nil || !shortcutReady || sender.coolingDown || request != nil)
+                        .accessibilityIdentifier("demo-arm-sms")
                     Label(presentation.healthSignal?.step == .steady || presentation.demoLoad == nil ? "Waiting for a support signal" : "Support signal detected", systemImage: "waveform.path")
                         .accessibilityIdentifier("demo-signal-state")
-                    Label(request == nil ? "No request prepared" : "Request prepared for \(request!.contactName)", systemImage: request == nil ? "circle" : "checkmark.circle")
+                    Text(request == nil ? "No request started" : "Request handed to Shortcuts")
                         .accessibilityIdentifier("demo-request-state")
-                    if let request {
-                        Text(request.status == .pending ? "Prepared · not sent" : "Submitted to Messages")
-                            .font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("demo-transport-state")
-                        Text(bodyText).font(.subheadline).textSelection(.enabled)
-                        if request.status == .pending {
-                            Button("Review test message", systemImage: "message") { openMessages() }
-                                .disabled(coolingDown || !MessageCompose.canSend)
-                        }
-                        Text("Request ID: \(request.id)").font(.caption2).foregroundStyle(.secondary)
+                    if let status = sender.statusText {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Latest shortcut result").font(.caption).foregroundStyle(.secondary)
+                            Text(status).font(.subheadline)
+                        }.accessibilityIdentifier("demo-sms-result")
                     }
-                    if let result { Text(result).font(.subheadline).foregroundStyle(EverydayStyle.accent).accessibilityIdentifier("demo-sms-result") }
-                    if coolingDown { Text("A test was recently submitted. Wait five minutes before another send.").font(.caption).foregroundStyle(.secondary) }
-                    if !MessageCompose.canSend { Text("SMS review is available on an iPhone with Messages enabled.").font(.caption).foregroundStyle(.secondary) }
-                } header: { Text("Message test") } footer: {
-                    Text("Arming agrees to this foreground demo test only. Crossing the support threshold prepares one request and opens Messages. Tap Send there. Background SMS delivery is not connected; delivery is not verified by this app.")
+                    if sender.coolingDown { Text("One attempt per five minutes. Reset does not remove this limit.").font(.caption).foregroundStyle(.secondary) }
+                    DisclosureGroup("One-time iPhone setup", isExpanded: $showSetup) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("1. In Shortcuts, create a shortcut named Mind Demo SMS.")
+                            Text("2. Add Apple's Send Message action. Choose Konsta and the same number saved in Mind.")
+                            Text("3. Use this fixed message:")
+                            Text("Mind DEMO TEST: automatic support signal reached. No action needed.").textSelection(.enabled)
+                            Text("4. Turn off Show When Run / Show Compose Sheet in that action. Allow the first iOS permission yourself.")
+                            Text("The shortcut must contain only that fixed test message and recipient. It receives no Health data or phone number from Mind.")
+                            Button("Open Shortcuts") { if let url = URL(string: "shortcuts://") { openURL(url) } }
+                            Toggle("Mind Demo SMS is configured for Konsta", isOn: $shortcutReady)
+                                .accessibilityIdentifier("demo-shortcut-ready")
+                        }.font(.subheadline).padding(.vertical, 10)
+                    }
+                } header: { Text("Message test · your iPhone") } footer: {
+                    Text("Once set up, a support signal runs the shortcut without a Messages Send button. Shortcuts may open and iOS may request a first-run permission. A completed shortcut does not verify message delivery.")
                 }
                 Section {
                     Button("Fine-tune individual readings", systemImage: "slider.horizontal.3") { showReadings = true }
@@ -73,38 +77,14 @@ struct BesideDemoScenarioView: View {
                 .onAppear {
                     load = presentation.demoLoad ?? 0
                     if presentation.demoLoad == nil { presentation.applyDemoLoad(0) }
-                    recipientID = presentation.demoRecipientID ?? contacts.first(where: { $0.name.localizedCaseInsensitiveContains("konsta") })?.id ?? contacts.first?.id ?? ""
-                    request = presentation.backend.planner.outbox.first { $0.day == presentation.day && $0.contactID == recipientID && $0.status != .cancelled }
-                    if request?.status == .sent { result = "Submitted to Messages. Recipient delivery is not verified." }
+                    showSetup = !shortcutReady
                 }
-                .onChange(of: recipientID) { old, _ in
-                    guard !old.isEmpty else { return }
-                    armed = false; request = nil; result = nil; presentation.setDemoRecipient(nil)
-                }
+                .onChange(of: shortcutReady) { _, ready in if !ready { armed = false } }
                 .onChange(of: armed) { _, enabled in
-                    presentation.setDemoRecipient(enabled ? recipientID : nil)
-                    if enabled { prepareIfNeeded() }
+                    presentation.setDemoRecipient(enabled ? konsta?.id : nil)
+                    if enabled { sendIfNeeded() }
                 }
                 .sheet(isPresented: $showReadings) { BesideDemoControlsView(embeddedInDemo: true) }
-                .sheet(isPresented: $compose) {
-                    if let recipient, let request {
-                        MessageCompose(recipient: recipient.phone, body: bodyText, onResult: { outcome in
-                            switch outcome {
-                            case .sent:
-                                lastSent = Date().timeIntervalSince1970
-                                presentation.backend.planner.recordDemoSMSSubmitted(messageID: request.id)
-                                var submitted = request
-                                submitted.status = .sent
-                                self.request = submitted
-                                result = "Submitted to Messages. Recipient delivery is not verified."
-                                armed = false
-                            case .cancelled: result = "Cancelled. Nothing was sent."
-                            case .failed: result = "Messages could not send the test. Nothing is marked as sent."
-                            @unknown default: result = "Send status unknown. Nothing is marked as sent."
-                            }
-                        }, onFinish: { compose = false })
-                    }
-                }
         }
     }
     private var stage: String {
@@ -112,21 +92,18 @@ struct BesideDemoScenarioView: View {
     }
     private func apply() {
         presentation.applyDemoLoad(load)
-        prepareIfNeeded()
+        sendIfNeeded()
     }
-    private func prepareIfNeeded() {
-        guard armed, recipient != nil, !coolingDown, request == nil else { return }
-        guard let prepared = presentation.prepareDemoSMS() else { return }
+    private func sendIfNeeded() {
+        guard armed, shortcutReady, konsta != nil, !sender.coolingDown, request == nil,
+              let prepared = presentation.prepareDemoSMS(),
+              let url = sender.begin(requestID: prepared.id, day: presentation.day), let run = sender.run else { return }
         request = prepared
-        result = nil
-        openMessages()
-    }
-    private func openMessages() {
-        guard !coolingDown, MessageCompose.canSend, recipient != nil, request != nil else { return }
-        compose = true
+        armed = false
+        openURL(url) { opened in sender.didOpen(id: run.id, opened: opened) }
     }
     private func reset() {
-        armed = false; request = nil; result = nil; load = 0
+        armed = false; request = nil; load = 0
         presentation.resetDemoScenario()
     }
 }

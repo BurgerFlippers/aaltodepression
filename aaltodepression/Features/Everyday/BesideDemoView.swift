@@ -6,7 +6,9 @@ struct BesideDemoView: View {
     @State private var showDemo = false
     @State private var showReadings = false
     private var recorded: SidequestDay? { presentation.liveBackend.planner.state.sidequests[presentation.day.jdn] }
-    private let categories: [SidequestCategory] = [.nutrition, .movement, .sleep, .social, .medicine]
+    private let categories: [SidequestCategory] = [.nutrition, .movement, .sleep, .medicine]
+
+    private var examples: DemoRoutineData { DemoRoutineData.example(on: presentation.day, load: presentation.demoLoad) }
 
     var body: some View {
         NavigationStack {
@@ -21,12 +23,22 @@ struct BesideDemoView: View {
                         VStack(spacing: 0) {
                             ForEach(categories, id: \.rawValue) { category in
                                 DisclosureGroup {
+                                    if category == .nutrition {
+                                        Label("Demo entries", systemImage: "testtube.2").font(.caption).foregroundStyle(EverydayStyle.accent)
+                                        LabeledContent("Meals", value: "\(examples.meals) / 3")
+                                        LabeledContent("Energy", value: "\(examples.energy) kcal")
+                                        LabeledContent("Water", value: "\(examples.water) mL")
+                                    }
+                                    if category == .medicine {
+                                        Label("Demo entries", systemImage: "testtube.2").font(.caption).foregroundStyle(EverydayStyle.accent)
+                                        LabeledContent("Doses recorded", value: "\(examples.doses) / 1")
+                                        Text("Example routine, separate from your Health records.").font(.caption).foregroundStyle(.secondary)
+                                    }
                                     ForEach(metrics(category)) { metric in
                                         LabeledContent(metric.title, value: metric.text(presentation.reading(metric)))
                                             .font(.subheadline).padding(.vertical, 5)
                                     }
                                     if category == .social { Text("Your conversations stay private. Use For you to reach out.").font(.subheadline).foregroundStyle(.secondary) }
-                                    if category == .medicine { Text("Keep following your prescribed schedule. Medication tracking is not connected here.").font(.subheadline).foregroundStyle(.secondary) }
                                 } label: {
                                     HStack(spacing: 14) {
                                         Image(systemName: symbol(category)).font(.title3).foregroundStyle(EverydayStyle.accent).frame(width: 28)
@@ -35,7 +47,7 @@ struct BesideDemoView: View {
                                             Text(summary(category)).font(.caption).foregroundStyle(.secondary)
                                         }
                                         Spacer(minLength: 4)
-                                        if let score = presentation.categoryScore(category) {
+                                        if let score = score(category) {
                                             Text("\(Int(score.rounded()))").font(.title3.monospacedDigit().bold()).foregroundStyle(.primary)
                                         }
                                     }.padding(.vertical, 10)
@@ -66,20 +78,26 @@ struct BesideDemoView: View {
 
     private func metrics(_ category: SidequestCategory) -> [BesideHealthMetric] {
         switch category {
-        case .nutrition: [.foodEnergy, .water, .protein, .carbs, .fat]
+        case .nutrition: []
         case .movement: [.steps, .exercise, .daylight]
         case .sleep: [.sleep, .bedtime, .wake]
         default: []
         }
     }
-    private func summary(_ category: SidequestCategory) -> String {
-        if let score = presentation.categoryScore(category) { return score >= 70 ? "Close to your usual" : "Different from your usual" }
+    private func score(_ category: SidequestCategory) -> Double? {
         switch category {
-        case .nutrition: return presentation.reading(.foodEnergy).map { BesideHealthMetric.foodEnergy.text($0) + " logged" } ?? "No food log for this day"
-        case .movement: return presentation.reading(.steps).map { BesideHealthMetric.steps.text($0) } ?? "No movement reading"
-        case .sleep: return presentation.reading(.sleep).map { BesideHealthMetric.sleep.text($0) } ?? "No sleep reading"
-        case .social: return "A little company can help"
-        case .medicine: return "Your prescribed routine"
+        case .nutrition: examples.eatScore
+        case .medicine: examples.medicineScore
+        default: presentation.categoryScore(category)
+        }
+    }
+    private func summary(_ category: SidequestCategory) -> String {
+        switch category {
+        case .nutrition: return "Demo · \(examples.meals) of 3 meals"
+        case .medicine: return "Demo · \(examples.doses) of 1 doses recorded"
+        case .sleep: return presentation.reading(.sleep).map { BesideHealthMetric.sleep.text($0) + (presentation.demoLoad == nil ? " · Health" : " · Demo") } ?? "No shared sleep reading"
+        case .movement: return presentation.reading(.steps).map { BesideHealthMetric.steps.text($0) + (presentation.demoLoad == nil ? " · Health" : " · Demo") } ?? "No shared movement reading"
+        case .social: return "Not measured"
         }
     }
     private func symbol(_ category: SidequestCategory) -> String {
@@ -110,7 +128,7 @@ struct BesideTrendBalanceView: View {
             HStack { Text("Your usual"); Spacer(); Text("More support") }.font(.caption).foregroundStyle(.secondary)
             if presentation.hasDemoEdits {
                 Label("Demo values · Health is unchanged", systemImage: "testtube.2").font(.caption).foregroundStyle(EverydayStyle.accent)
-            } else { Text("Compared with your own daily rhythm").font(.caption).foregroundStyle(.secondary) }
+            } else { Text("Health balance · Eat and Medicine are demo examples").font(.caption).foregroundStyle(.secondary) }
         }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
             .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 22))
             .accessibilityElement(children: .combine)

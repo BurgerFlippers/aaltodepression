@@ -1,7 +1,7 @@
 import SwiftUI
 import MessageUI
 
-/// One recipient and one clear next action. Writing help stays optional.
+/// Choose a person, prepare the words, then copy the draft and open their conversation.
 struct EverydaySocialView: View {
     var initialPersonID: String? = nil
     var initialTopic: SupportTopic? = nil
@@ -93,16 +93,6 @@ struct EverydaySocialView: View {
                         }
                     }
                     if selected != nil {
-                        if inviting || testMessage != nil {
-                            Text(draft).font(.body).padding(18).frame(maxWidth: .infinity, alignment: .leading)
-                                .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20))
-                            Button(testMessage == nil ? "Review invite to \(selected?.name ?? "friend")" : "Review test to \(selected?.name ?? "Konsta")") { review(draft) }
-                                .buttonStyle(EverydayPrimaryButton())
-                            Text("You review and send it in Messages.").font(.footnote).foregroundStyle(.secondary)
-                        } else {
-                            Button("Message \(selected?.name ?? "someone")") { openMessages() }
-                                .buttonStyle(EverydayPrimaryButton())
-                        }
                         DisclosureGroup(inviting ? "Change the words" : "Help me write it", isExpanded: $writingHelp) {
                             VStack(alignment: .leading, spacing: 14) {
                                 if !inviting {
@@ -113,17 +103,29 @@ struct EverydaySocialView: View {
                                 }
                                 TextEditor(text: $draft).frame(minHeight: 110).padding(10).scrollContentBackground(.hidden)
                                     .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 14)).accessibilityLabel("Your message")
-                                HStack {
-                                    Button("Use suggested words") {
-                                        if draft.isEmpty || draft == generated { useSuggestion() } else { replaceDraft = true }
-                                    }
-                                    Spacer()
-                                    Button(copied ? "Copied" : "Copy") { UIPasteboard.general.string = draft; copied = true }
+                                Button("Use suggested words") {
+                                    if draft.isEmpty || draft == generated { useSuggestion() } else { replaceDraft = true }
                                 }.font(.subheadline)
-                                Button("Review message") { review(draft) }.buttonStyle(.borderedProminent).tint(EverydayStyle.action).foregroundStyle(.white)
-                                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             }.padding(.top, 14)
                         }.font(.headline).padding(18).background(EverydayStyle.peach, in: RoundedRectangle(cornerRadius: 20))
+                            .accessibilityIdentifier("reach-out-writing-help")
+                        if inviting || testMessage != nil {
+                            if !writingHelp { Text(draft).font(.body).padding(18).frame(maxWidth: .infinity, alignment: .leading)
+                                .background(EverydayStyle.surface, in: RoundedRectangle(cornerRadius: 20)) }
+                            Button(testMessage == nil ? "Review invite to \(selected?.name ?? "friend")" : "Review test to \(selected?.name ?? "Konsta")") { review(draft) }
+                                .buttonStyle(EverydayPrimaryButton())
+                                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            Text("You review and send it in Messages.").font(.footnote).foregroundStyle(.secondary)
+                        } else {
+                            Button("Message \(selected?.name ?? "someone")") { openMessages() }
+                                .buttonStyle(EverydayPrimaryButton())
+                                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                .accessibilityHint("Copies your message, then opens this person's conversation. Paste and send it there.")
+                                .accessibilityIdentifier("reach-out-message")
+                            Text("Your message is copied when you tap Message. In Messages, just paste it into the conversation and send.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                                .accessibilityIdentifier("reach-out-paste-instruction")
+                        }
                     }
                 }.padding(20)
             }.background(EverydayStyle.paper)
@@ -131,12 +133,15 @@ struct EverydaySocialView: View {
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
                 .onAppear {
                     if personID.isEmpty {
-                        personID = initialPersonID.flatMap { id in contacts.first { $0.id == id }?.id } ?? people.first?.id ?? ""
+                        personID = initialPersonID.flatMap { id in contacts.first { $0.id == id }?.id } ?? ((inviting || testMessage != nil) ? people.first?.id ?? "" : "")
                         topic = initialTopic
                         useSuggestion()
                     }
                 }
-                .onChange(of: personID) { _, _ in refreshSuggestionIfUnedited() }
+                .onChange(of: personID) { _, _ in
+                    refreshSuggestionIfUnedited()
+                    if selected != nil, !inviting, testMessage == nil { writingHelp = true }
+                }
                 .onChange(of: topic) { _, _ in refreshSuggestionIfUnedited() }
                 .onChange(of: draft) { _, _ in copied = false }
                 .sheet(isPresented: $showPeople, onDismiss: { presentation.syncSetup(); personID = contacts.last?.id ?? "" }) {
@@ -155,7 +160,7 @@ struct EverydaySocialView: View {
                 .alert("Messages isn't available", isPresented: $unavailable) {
                     Button("Copy message") { UIPasteboard.general.string = draft; copied = true }
                     Button("OK", role: .cancel) {}
-                } message: { Text("Nothing was sent. You can copy the message and use your usual messaging app.") }
+                } message: { Text(copied ? "Your message is copied. Paste it into your usual messaging app and send it there." : "Nothing was sent. You can copy the message and use your usual messaging app.") }
                 .alert("The message wasn't sent", isPresented: $failed) { Button("OK", role: .cancel) {} } message: { Text("Your draft is still here.") }
         }
     }
@@ -170,6 +175,8 @@ struct EverydaySocialView: View {
         guard let selected else { return }
         let number = selected.phone.filter { $0.isNumber || $0 == "+" }
         guard !number.isEmpty, let url = URL(string: "sms:\(number)") else { unavailable = true; return }
+        UIPasteboard.general.string = draft
+        copied = true
         openURL(url) { opened in
             if opened { dismiss() } else { unavailable = true }
         }
