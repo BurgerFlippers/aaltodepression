@@ -6,6 +6,7 @@ import Observation
 @MainActor @Observable
 final class BesidePresentation {
     private(set) var backend: Backend
+    let demoShortcutSender = DemoShortcutSender()
     let liveBackend: Backend
     private var sandbox: Backend?
     private(set) var sidequestFocus = 0

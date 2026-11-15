@@ -177,3 +177,13 @@ Trends shows daily balance and expandable Eat, Move, Sleep, Social and Medicine 
 For the message demo, open Trends → Demo, choose a saved test recipient and enable **Prepare a test request automatically**. Drag the slider towards Harder days and release it. The simulated input history is evaluated by the existing scoring and support rules; a support signal prepares one pending call request. On an iPhone, Messages opens for review and the person taps Send. Every test draft starts with **Mind DEMO TEST — no action needed**. Submission confirmation comes only from MessageUI, with a five-minute cooldown; delivery is not verified. Cancel/failure do not mark a send. Reset restores the real reading snapshot and clears the in-memory scenario. Health and live records remain unchanged.
 
 The current transport is native foreground Messages, not a background SMS service. A server sender still needs its endpoint and authentication contract. No service secrets belong in this repository.
+
+### Own-phone demo sender and sample routines (2026-11-15)
+
+The demo uses Apple's Shortcuts app instead of an external SMS provider. On the iPhone, create **Mind Demo SMS** with Apple's Send Message action, a fixed recipient **Konsta** (same number as Your people), and this fixed body: **Mind DEMO TEST: automatic support signal reached. No action needed.** Disable the action's **Show When Run / Show Compose Sheet** option and handle any first-run iOS permission yourself. Mind → Trends → Demo → One-time iPhone setup contains these instructions and the setup acknowledgement. The documentation-only **Mind Demo SMS Setup** shortcut created on the Mac is not the sending shortcut.
+
+After setup, arm **Send a demo text automatically** and move the slider to a support signal. The app starts the named shortcut, which can send through the person's Messages account without a separate Send tap. Shortcuts may briefly open. The app persists each attempt before leaving, enforces one attempt per five minutes across resets/relaunches, and reports only the matching shortcut's completion/cancellation/error. **Shortcut finished is not a delivery receipt.** SMS versus iMessage is determined by Messages configuration. No Health/contact/message body is passed in the launch URL. There is no new server, Twilio account or rented sender.
+
+Normal Trends uses actual Health for Sleep and Move. Eat and Medicine have clearly marked, separate demo examples; they do not contribute to the Health balance or write Health data. Social remains a challenge category, but is no longer shown as passively measured.
+
+Apple documents the launch and callback mechanism at https://support.apple.com/guide/shortcuts/apdcd7f20a6f/ios .

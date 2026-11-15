@@ -40,6 +40,10 @@ private struct EverydaySessionView: View {
         .onChange(of: presentation.sidequestFocus) { _, _ in selectedTab = 0 }
         .onOpenURL { url in
             guard url.scheme == "beside" else { return }
+            if url.host?.hasPrefix("demo-sms-") == true {
+                _ = presentation.demoShortcutSender.handle(url)
+                return
+            }
             if url.host == "sidequest" { presentation.openSidequest(); selectedTab = 0 }
             if url.host == "reach-out" { presentation.openMessagesFromLink(); selectedTab = 0 }
         }
