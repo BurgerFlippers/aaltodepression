@@ -11,7 +11,7 @@ Built in a weekend at **Junction 2026** for the Aalto University challenge *"Bey
 - **Learns your usual.** Sleep, daily rhythm, movement, daylight, getting out and body signals are compared with *your own* baseline, not a population average. Everything stays on the phone.
 - **One small step a day.** Three easy choices, pick one, mark it done. Feeling good? Do another. Feeling rough? The tasks get smaller.
 - **People, ready in advance.** Choose who could help with groceries, the pharmacy, cleaning or company while you feel well, so asking is one tap away when it's harder.
-- **Demo-friendly.** Trends has built-in demo scenarios from "Steady" to "A harder stretch", and an SMS demo shows how a contact person would be notified.
+- **Demo-friendly.** Trends has built-in demo scenarios from "Steady" to "A harder stretch", where the app shows that a contact person would be notified.
 
 ## Why
 
@@ -52,15 +52,14 @@ Tasks come from a 30-task library (Eat, Move, Sleep, Social, Medicine), aimed at
 ## Demo
 
 - **Trends → Switch to demo data:** three scenarios (Steady, A few harder days, A harder stretch) on a simulated history. Real data is untouched, and leaving the tab clears it.
-- **Send SMS demo:** appears with A harder stretch. The contact is chosen once in the triple-tap demo menu, which also shows the six-step shortcut setup. "Send SMS demo" (with A harder stretch) then runs the person's own Apple Shortcut "Mind Demo SMS" straight away. The app passes the contact's phone number and a generic message ("Hi <contact>, it would be good to give <user> a call today. (MindMaintainer demo)") as the shortcut's text input; no Health data. One attempt per minute; Shortcuts may show for a moment, and a finished shortcut is not proof of delivery.
 - **One thing → Show more tasks (demo):** sliders for the six areas show which tasks those scores would pick. Nothing is saved.
-- **Advanced demo menu:** triple tap the Trends title. It has the SMS test, 60 simulated days instead of Health, per-area score sliders, a difficulty slider, and editing of Health readings. Everything stays in an in-memory copy.
+- **Advanced demo menu:** triple tap the Trends title. It has 60 simulated days instead of Health, per-area score sliders, a difficulty slider, and editing of Health readings. Everything stays in an in-memory copy.
 
 `Tools/engine-check.sh` also runs the synthetic patient Perttu (60 days, a cold on days 30 to 32, a trip on days 38 to 40, then drift) and checks that the cold and trip do not escalate, step 1 comes around day 49 and step 2 around day 59.
 
 ## Data and privacy
 
-Everything is computed on the phone and there is no server. Health is read only for the types the person allows, and Location and iPhone movement stay off until the person turns them on. Messages are drafted by the app and sent by the person; the only automatic send is the opt-in SMS demo shortcut above. The Automatic support switch saves the person's choice, but no automatic request is delivered in this prototype.
+Everything is computed on the phone and there is no server. Health is read only for the types the person allows, and Location and iPhone movement stay off until the person turns them on. Messages are drafted by the app and sent by the person. The Automatic support switch saves the person's choice, but no automatic request is delivered in this prototype.
 
 - What may be collected and why: [docs/DATA_SCOPE.md](docs/DATA_SCOPE.md) (includes the places where the code does not yet meet a rule)
 - Exact Health types read: [docs/HEALTHKIT_DATA.md](docs/HEALTHKIT_DATA.md)
@@ -83,11 +82,11 @@ BESIDE_HOST_BUNDLE_IDENTIFIER = your.unique.bundle
 BESIDE_DEVELOPMENT_TEAM = YOURTEAMID
 ```
 
-Both targets need HealthKit and the App Group `group.<your bundle id>`. Never commit the local override or signing changes in `project.pbxproj`. Use a real iPhone (and Apple Watch, if available) for Health data, Messages and the SMS demo.
+Both targets need HealthKit and the App Group `group.<your bundle id>`. Never commit the local override or signing changes in `project.pbxproj`. Use a real iPhone (and Apple Watch, if available) for Health data and Messages.
 
 **Checks** (no Xcode project needed, only `swiftc`):
 
-- `Tools/engine-check.sh` compiles all of `Engine/` with the demo sources, without SwiftUI, and runs the step engine, planner, task and SMS demo checks.
+- `Tools/engine-check.sh` compiles all of `Engine/` with the demo sources, without SwiftUI, and runs the step engine, planner, task and demo checks.
 - `Tools/everyday-check.sh` checks the profile store.
 
 There is no XCTest target.
@@ -98,7 +97,7 @@ There is no XCTest target.
 |---|---|
 | `aaltodepression/Engine/` | Pure Swift, no SwiftUI or UIKit: baseline, scores, step engine, planner and task rules, message templates. `Engine/Contracts/` is the shared contract between backend and frontend. |
 | `aaltodepression/Sources/` | HealthKit, Core Motion, Core Location, contacts, simulated and demo data. |
-| `aaltodepression/Store/` | `Backend`, `Planner`, saved state, permissions, notifications, SMS demo sender. |
+| `aaltodepression/Store/` | `Backend`, `Planner`, saved state, permissions, notifications. |
 | `aaltodepression/Features/Everyday/` | All running SwiftUI views and `BesidePresentation`, the adapter between views and `Backend`. |
 | `BesideWidget/`, `SharedSidequest/` | Widget target and the App Group file it shares with the app. |
 | `aaltodepression/UI/`, `AppModel.swift` | Legacy "Usual" prototype, not shown by the running app (`UI/MessageCompose.swift` is still used). |
